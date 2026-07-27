@@ -1,0 +1,19 @@
+{
+  "name": "resto-plus",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend/*"
+  ],
+  "scripts": {
+    "dev:mobile": "yarn workspace @resto-plus/mobile start",
+    "dev:api": "yarn workspace @resto-plus/api dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "yarn@4.0.0"
+}
