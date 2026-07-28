@@ -1,0 +1,10 @@
+{
+  "name": "@resto-plus/ui-luxury",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/tokens.ts",
+  "types": "src/tokens.ts",
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
