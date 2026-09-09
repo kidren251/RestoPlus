@@ -30,6 +30,33 @@ const sendAction = async (action: QueuedAction): Promise<void> => {
     case "table_move":
       await api.put(`/tables/${(action.payload as { id: string }).id}/position`, action.payload);
       break;
+    case "table_info_update":
+      await api.put(`/tables/${(action.payload as { id: string }).id}/info`, action.payload);
+      break;
+    case "table_service_update":
+      await api.put(`/tables/${(action.payload as { tableId: string }).tableId}/service`, action.payload);
+      break;
+    case "table_open":
+      await api.put(`/tables/${(action.payload as { tableId: string }).tableId}/open`, action.payload);
+      break;
+    case "table_bill_sent":
+      await api.put(`/tables/${(action.payload as { tableId: string }).tableId}/bill`, action.payload);
+      break;
+    case "client_upsert":
+      await api.post("/clients", action.payload);
+      break;
+    case "dish_request":
+      await api.put(`/tables/${(action.payload as { tableId: string }).tableId}/dish-request`, action.payload);
+      break;
+    case "dish_ready":
+      await api.put(`/tables/${(action.payload as { tableId: string }).tableId}/dish-ready`, action.payload);
+      break;
+    case "reservation_create":
+      await api.post("/reservations", action.payload);
+      break;
+    case "reservation_cancel":
+      await api.delete(`/reservations/${(action.payload as { id: string }).id}`);
+      break;
     case "checklist_entry":
       await api.post("/checklist-entries", action.payload);
       break;

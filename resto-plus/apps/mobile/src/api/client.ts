@@ -7,6 +7,7 @@
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 const TIMEOUT_MS = 8_000;
+let accessToken: string | null = null;
 
 class ApiError extends Error {
   constructor(
@@ -16,6 +17,10 @@ class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+}
+
+export function setApiAccessToken(token: string | null) {
+  accessToken = token;
 }
 
 async function apiFetch<T>(
@@ -31,6 +36,7 @@ async function apiFetch<T>(
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...options?.headers,
       },
     });
@@ -58,6 +64,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+  delete: <T>(path: string) => apiFetch<T>(path, { method: "DELETE" }),
 };
 
 export { ApiError };

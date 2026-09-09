@@ -1,0 +1,6 @@
+resto-plus/node_modules/
+**/.expo/
+**/.expo-shared/
+.env
+.env.*
+!.env.example

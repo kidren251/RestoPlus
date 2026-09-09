@@ -17,6 +17,8 @@ const ACCES_RAPIDES = [
   { id: "plan_salle", label: "Plan de salle", numero: "01" },
   { id: "checklists", label: "Checklists HACCP", numero: "02" },
   { id: "fiches_vip", label: "Réservations du soir", numero: "03" },
+  { id: "taches_salle", label: "Tâches équipe de salle", numero: "04" },
+  { id: "scanner_invitation", label: "Rejoindre un restaurant", numero: "05" },
 ] as const;
 
 export function AccueilScreen({
@@ -87,6 +89,18 @@ export function AccueilScreen({
             <Text style={styles.rowChevron}>›</Text>
           </Pressable>
         ))}
+      </View>
+
+      <Text style={[styles.sectionLabel, styles.teamSectionLabel]}>ESPACES ÉQUIPE</Text>
+      <View>
+        <Pressable onPress={() => onNaviguer("espace_cuisine")} style={({ pressed }) => [styles.teamRow, pressed && styles.rowPressed]}>
+          <Text style={styles.teamLabel}>Espace cuisine</Text>
+          <Text style={styles.rowChevron}>›</Text>
+        </Pressable>
+        <Pressable onPress={() => onNaviguer("espace_salle")} style={({ pressed }) => [styles.teamRow, pressed && styles.rowPressed]}>
+          <Text style={styles.teamLabel}>Espace équipe de salle</Text>
+          <Text style={styles.rowChevron}>›</Text>
+        </Pressable>
       </View>
 
       {/* Pied de page : prenom utilisateur */}
@@ -179,6 +193,22 @@ const styles = StyleSheet.create({
     letterSpacing: typography.tracking.label,
     color: colors.gold,
     marginBottom: spacing.sm - 2,
+  },
+  teamSectionLabel: {
+    marginTop: spacing.xl,
+  },
+  teamRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.creamBorder,
+  },
+  teamLabel: {
+    color: colors.navy,
+    fontFamily: typography.serif,
+    fontSize: 14,
   },
   row: {
     flexDirection: "row",

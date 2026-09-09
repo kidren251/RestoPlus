@@ -6,21 +6,31 @@ import {
   ScrollView,
   ActivityIndicator,
   Pressable,
+  Modal,
+  TextInput,
 } from "react-native";
 import { colors, typography, radii, spacing } from "@resto-plus/ui-luxury";
 import type { Reservation } from "@resto-plus/types";
 import { api } from "../api/client";
+import { enqueueSync } from "../store/syncStore";
 
 // Données mockées — sera remplacé par l'API Supabase Phase 2
 const MOCK_RESERVATIONS: Reservation[] = [
   {
     id: "r1",
     tableId: "t2",
+    clientId: "client-fontaine",
     nomClient: "M. Fontaine",
     couverts: 2,
     heure: "19:30",
     allergenes: [],
     notes: "Anniversaire — prévoir bougie",
+    source: "telephone",
+    status: "installee",
+    serviceEvents: [
+      { id: "e1", reservationId: "r1", tableId: "t2", type: "arrivee", label: "Arrivée des clients", occurredAt: "2026-09-09T19:42:00.000Z" },
+      { id: "e2", reservationId: "r1", tableId: "t2", type: "plat_servi", label: "Plats servis", occurredAt: "2026-09-09T20:22:00.000Z" },
+    ],
   },
   {
     id: "r2",
@@ -71,6 +81,12 @@ export function ReservationsScreen() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [nomClient, setNomClient] = useState("");
+  const [heure, setHeure] = useState("19:30");
+  const [tableId, setTableId] = useState("t1");
+  const [couverts, setCouverts] = useState("2");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -101,16 +117,49 @@ export function ReservationsScreen() {
     (r) => r.notes?.toLowerCase().includes("vip") || r.allergenes.length > 0
   ).length;
 
+  const ajouterReservation = () => {
+    const nom = nomClient.trim();
+    const nombre = Number.parseInt(couverts, 10);
+    if (!nom || !/^([01]\d|2[0-3]):[0-5]\d$/.test(heure) || !Number.isInteger(nombre) || nombre < 1) {
+      return;
+    }
+    const reservation: Reservation = {
+      id: `local-${Date.now()}`,
+      tableId: tableId.trim() || "t1",
+      nomClient: nom,
+      couverts: nombre,
+      heure,
+      allergenes: [],
+      notes: notes.trim(),
+    };
+    setReservations((current) => [...current, reservation]);
+    enqueueSync("reservation_create", reservation);
+    setNomClient("");
+    setNotes("");
+    setShowForm(false);
+  };
+
+  const annulerReservation = (id: string) => {
+    setReservations((current) => current.filter((reservation) => reservation.id !== id));
+    enqueueSync("reservation_cancel", { id });
+    setSelectedId(null);
+  };
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Réservations du soir</Text>
-        <Text style={styles.subtitle}>
-          {reservations.length} réservations · {vipCount} attention requise
-        </Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>Réservations du soir</Text>
+            <Text style={styles.subtitle}>{reservations.length} réservations · {vipCount} attention requise</Text>
+          </View>
+          <Pressable style={styles.addButton} onPress={() => setShowForm(true)}>
+            <Text style={styles.addButtonLabel}>+</Text>
+          </Pressable>
+        </View>
       </View>
 
       <Text style={styles.sectionLabel}>PLANNING</Text>
@@ -123,8 +172,25 @@ export function ReservationsScreen() {
           onPress={() =>
             setSelectedId(selectedId === res.id ? null : res.id)
           }
+          onCancel={() => annulerReservation(res.id)}
         />
       ))}
+
+      <ReservationForm
+        visible={showForm}
+        nomClient={nomClient}
+        heure={heure}
+        tableId={tableId}
+        couverts={couverts}
+        notes={notes}
+        onClose={() => setShowForm(false)}
+        onSubmit={ajouterReservation}
+        setNomClient={setNomClient}
+        setHeure={setHeure}
+        setTableId={setTableId}
+        setCouverts={setCouverts}
+        setNotes={setNotes}
+      />
     </ScrollView>
   );
 }
@@ -133,10 +199,12 @@ function ReservationCard({
   reservation,
   expanded,
   onPress,
+  onCancel,
 }: {
   reservation: Reservation;
   expanded: boolean;
   onPress: () => void;
+  onCancel: () => void;
 }) {
   const hasAllergenes = reservation.allergenes.length > 0;
   const isVip = reservation.notes?.toLowerCase().includes("vip");
@@ -199,9 +267,80 @@ function ReservationCard({
               <Text style={styles.notes}>{reservation.notes}</Text>
             </View>
           ) : null}
+          {reservation.source && (
+            <Text style={styles.metadata}>Réservation par {reservation.source.replace("_", " ")}</Text>
+          )}
+          {reservation.serviceEvents && reservation.serviceEvents.length > 0 && (
+            <View>
+              <Text style={styles.detailLabel}>DÉROULÉ DU DÎNER</Text>
+              {reservation.serviceEvents.map((event) => (
+                <View key={event.id} style={styles.timelineRow}>
+                  <Text style={styles.timelineTime}>{new Date(event.occurredAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</Text>
+                  <Text style={styles.timelineLabel}>{event.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Pressable onPress={onCancel} style={styles.cancelButton}>
+            <Text style={styles.cancelLabel}>Annuler cette réservation</Text>
+          </Pressable>
         </View>
       )}
     </Pressable>
+  );
+}
+
+function ReservationForm({
+  visible,
+  nomClient,
+  heure,
+  tableId,
+  couverts,
+  notes,
+  onClose,
+  onSubmit,
+  setNomClient,
+  setHeure,
+  setTableId,
+  setCouverts,
+  setNotes,
+}: {
+  visible: boolean;
+  nomClient: string;
+  heure: string;
+  tableId: string;
+  couverts: string;
+  notes: string;
+  onClose: () => void;
+  onSubmit: () => void;
+  setNomClient: (value: string) => void;
+  setHeure: (value: string) => void;
+  setTableId: (value: string) => void;
+  setCouverts: (value: string) => void;
+  setNotes: (value: string) => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.form}>
+          <View style={styles.formHeader}>
+            <Text style={styles.formTitle}>Nouvelle réservation</Text>
+            <Pressable onPress={onClose}><Text style={styles.closeLabel}>✕</Text></Pressable>
+          </View>
+          <Text style={styles.formLabel}>Nom du client</Text>
+          <TextInput style={styles.input} value={nomClient} onChangeText={setNomClient} placeholder="Nom" />
+          <View style={styles.formRow}>
+            <View style={styles.formHalf}><Text style={styles.formLabel}>Heure</Text><TextInput style={styles.input} value={heure} onChangeText={setHeure} keyboardType="numbers-and-punctuation" placeholder="19:30" /></View>
+            <View style={styles.formHalf}><Text style={styles.formLabel}>Couverts</Text><TextInput style={styles.input} value={couverts} onChangeText={setCouverts} keyboardType="number-pad" /></View>
+          </View>
+          <Text style={styles.formLabel}>Table</Text>
+          <TextInput style={styles.input} value={tableId} onChangeText={setTableId} placeholder="t1" />
+          <Text style={styles.formLabel}>Note</Text>
+          <TextInput style={styles.input} value={notes} onChangeText={setNotes} placeholder="Optionnel" />
+          <Pressable style={styles.submitButton} onPress={onSubmit}><Text style={styles.submitLabel}>Ajouter</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -223,6 +362,7 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.lg,
   },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: {
     fontFamily: typography.serif,
     fontSize: 20,
@@ -233,6 +373,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
   },
+  addButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.navy, alignItems: "center", justifyContent: "center" },
+  addButtonLabel: { color: colors.gold, fontSize: 24, lineHeight: 26, fontWeight: "300" },
   sectionLabel: {
     fontSize: 9,
     letterSpacing: typography.tracking.label,
@@ -340,4 +482,21 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontStyle: "italic",
   },
+  metadata: { fontSize: 11, color: colors.textMuted },
+  timelineRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: 5 },
+  timelineTime: { width: 42, color: colors.gold, fontFamily: typography.serif, fontSize: 12 },
+  timelineLabel: { color: colors.navy, fontSize: 11 },
+  cancelButton: { alignSelf: "flex-start", marginTop: spacing.sm },
+  cancelLabel: { color: colors.statusOccupied, fontSize: 11 },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(11,30,51,0.35)" },
+  form: { backgroundColor: colors.cream, padding: spacing.lg, borderTopLeftRadius: radii.card, borderTopRightRadius: radii.card },
+  formHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
+  formTitle: { fontFamily: typography.serif, fontSize: 18, color: colors.navy },
+  closeLabel: { color: colors.navy, fontSize: 16, padding: spacing.xs },
+  formLabel: { color: colors.textMuted, fontSize: 10, marginBottom: 4, marginTop: spacing.sm },
+  input: { borderWidth: 1, borderColor: colors.creamBorder, backgroundColor: colors.creamLight, borderRadius: radii.card, paddingHorizontal: spacing.sm, paddingVertical: 9, color: colors.navy },
+  formRow: { flexDirection: "row", gap: spacing.sm },
+  formHalf: { flex: 1 },
+  submitButton: { backgroundColor: colors.navy, borderRadius: radii.card, alignItems: "center", paddingVertical: 12, marginTop: spacing.lg },
+  submitLabel: { color: colors.gold, fontWeight: "600" },
 });

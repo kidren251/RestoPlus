@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { tableInfos, tablePositions, tableServices, tableStatuts } from "./tableState";
 
 // Données mockées Phase 1
 const MOCK_SALLES = [
@@ -9,10 +10,10 @@ const MOCK_SALLES = [
     hauteurCanvas: 400,
     tables: [
       { id: "t1", x: 20, y: 30, largeur: 60, hauteur: 60, rotation: 0, forme: "ronde", capacite: 2, zoneId: "z1", statut: "libre" },
-      { id: "t2", x: 110, y: 30, largeur: 70, hauteur: 50, rotation: 0, forme: "rectangle", capacite: 4, zoneId: "z1", statut: "occupee" },
-      { id: "t3", x: 20, y: 130, largeur: 70, hauteur: 50, rotation: 0, forme: "carree", capacite: 4, zoneId: "z1", statut: "reservee" },
+      { id: "t2", x: 110, y: 30, largeur: 70, hauteur: 50, rotation: 0, forme: "rectangle", capacite: 4, zoneId: "z1", statut: "libre" },
+      { id: "t3", x: 20, y: 130, largeur: 70, hauteur: 50, rotation: 0, forme: "carree", capacite: 4, zoneId: "z1", statut: "libre" },
       { id: "t4", x: 120, y: 130, largeur: 60, hauteur: 60, rotation: 0, forme: "ronde", capacite: 6, zoneId: "z2", statut: "libre" },
-      { id: "t5", x: 20, y: 230, largeur: 80, hauteur: 60, rotation: 0, forme: "rectangle", capacite: 8, zoneId: "z2", statut: "a_nettoyer" },
+      { id: "t5", x: 20, y: 230, largeur: 80, hauteur: 60, rotation: 0, forme: "rectangle", capacite: 8, zoneId: "z2", statut: "libre" },
       { id: "t6", x: 140, y: 230, largeur: 60, hauteur: 50, rotation: 15, forme: "carree", capacite: 4, zoneId: "z2", statut: "libre" },
     ],
     decor: [
@@ -24,9 +25,6 @@ const MOCK_SALLES = [
 ];
 
 // Statuts mutables en mémoire (reset au redémarrage du serveur, normal en Phase 1)
-const tableStatuts: Record<string, string> = {};
-const tablePositions: Record<string, { x: number; y: number }> = {};
-
 export async function sallesRoutes(app: FastifyInstance) {
   // GET /salles — liste toutes les salles
   app.get("/salles", async () => {
@@ -41,6 +39,8 @@ export async function sallesRoutes(app: FastifyInstance) {
     // Appliquer les statuts/positions modifiés en mémoire
     const tables = salle.tables.map((t) => ({
       ...t,
+      ...tableInfos[t.id],
+      serviceState: tableServices[t.id],
       statut: tableStatuts[t.id] ?? t.statut,
       x: tablePositions[t.id]?.x ?? t.x,
       y: tablePositions[t.id]?.y ?? t.y,

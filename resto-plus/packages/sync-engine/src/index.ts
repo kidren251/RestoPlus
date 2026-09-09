@@ -15,6 +15,15 @@ export type SyncActionType =
   | "checklist_entry"
   | "table_move"
   | "table_status_change"
+  | "table_info_update"
+  | "table_service_update"
+  | "table_open"
+  | "table_bill_sent"
+  | "client_upsert"
+  | "dish_request"
+  | "dish_ready"
+  | "reservation_create"
+  | "reservation_cancel"
   | "message_send";
 
 export interface QueuedAction<T = unknown> {
