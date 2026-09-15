@@ -2,7 +2,15 @@
 // Voir docs/architecture.md pour le contexte complet
 
 export type Role = "serveur" | "manager" | "extra" | "direction";
-export type AccessRole = "manager_admin" | "access_admin" | "chef_rang" | "serveur";
+export type AccessRole = "serveur" | "chef_rang" | "manager_admin" | "directeur_admin";
+// Pôle métier de l'équipier au sein de l'établissement : détermine les espaces visibles
+// (un cuisinier n'a pas accès au plan de salle, un serveur n'a pas accès aux stocks/checklists cuisine).
+// "direction" (N2/N3) voit les deux espaces. Défini à la création de l'accès de l'équipier
+// (invitation ou fiche membre), modifiable par le N3 de l'établissement ; le cadre général
+// (les pôles existants) relève du niveau N4.
+export type Pole = "salle" | "cuisine" | "direction";
+export type PlatformRole = "restaurant_user" | "dev_creator";
+export type AccessLevel = 0 | 1 | 2 | 3 | 4;
 export type ClientVisitStatus = "a_venir" | "installe" | "addition" | "termine";
 export type DishWorkflowStatus = "en_attente" | "en_preparation" | "a_reclamer" | "pret" | "servi";
 
@@ -17,6 +25,7 @@ export interface RestaurantMember {
   restaurantId: string;
   userId: string;
   accessRole: AccessRole;
+  pole: Pole;
   actif: boolean;
 }
 
@@ -24,6 +33,7 @@ export interface RestaurantInvitation {
   id: string;
   restaurantId: string;
   role: "serveur";
+  pole: Pole;
   token: string;
   expiresAt: string;
   maxUses: 1;
@@ -44,6 +54,7 @@ export interface User {
   id: string;
   nom: string;
   role: Role;
+  platformRole?: PlatformRole;
   accessRole?: AccessRole;
   service: "restauration" | "hebergement" | "conciergerie" | "spa";
   restaurantId?: string;
@@ -174,6 +185,64 @@ export interface ChecklistEntry {
   timestamp: string;
   statut: "en_attente" | "valide" | "en_retard";
   syncStatus: "local" | "synced";
+}
+
+// --- Gestion des stocks cuisine ---
+
+export type UniteStock = "kg" | "g" | "l" | "ml" | "unite";
+export type StockMovementType = "reception" | "sortie" | "perte" | "ajustement";
+
+export interface StockItem {
+  id: string;
+  restaurantId?: string;
+  nom: string;
+  categorie?: string;
+  unite: UniteStock;
+  quantiteActuelle: number;
+  seuilAlerte: number;
+  prixAchat?: number; // coût unitaire (par unité de `unite`) — base de l'équation prix/marge
+  updatedAt: string;
+}
+
+export interface StockMovement {
+  id: string;
+  stockItemId: string;
+  restaurantId?: string;
+  type: StockMovementType;
+  quantite: number; // toujours positive, le type détermine le sens
+  quantiteApres: number;
+  motif?: string;
+  userId?: string;
+  timestamp: string;
+}
+
+export type StockAlertNiveau = "bas" | "rupture";
+
+export interface StockAlert {
+  id: string;
+  stockItemId: string;
+  stockItemNom: string;
+  restaurantId?: string;
+  niveau: StockAlertNiveau;
+  message: string;
+  createdAt: string;
+  read: boolean;
+}
+
+// --- Carte / plats : lien commande ↔ ingrédients (base de l'équation prix/marge) ---
+
+export interface MenuItemIngredient {
+  stockItemId: string;
+  quantite: number; // quantité de l'ingrédient (dans son unite de stock) consommée par plat servi
+}
+
+export interface MenuItem {
+  id: string;
+  restaurantId?: string;
+  nom: string;
+  categorie?: string;
+  prixVente: number;
+  ingredients: MenuItemIngredient[];
 }
 
 // --- Messagerie ciblée ---

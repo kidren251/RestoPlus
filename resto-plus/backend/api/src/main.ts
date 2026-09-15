@@ -5,6 +5,9 @@ import { checklistsRoutes } from "./routes/checklists";
 import { reservationsRoutes } from "./routes/reservations";
 import { clientsRoutes } from "./routes/clients";
 import { invitationsRoutes } from "./routes/invitations";
+import { platformRoutes } from "./routes/platform";
+import { stockRoutes } from "./routes/stock";
+import { menuRoutes } from "./routes/menu";
 import { isMockMode } from "./supabase";
 import { authenticateRequest, isAuthRequired } from "./auth";
 
@@ -40,17 +43,29 @@ app.get("/health", async () => ({
   ts: new Date().toISOString(),
 }));
 
-// Routes métier
-await app.register(sallesRoutes);
-await app.register(tablesRoutes);
-await app.register(checklistsRoutes);
-await app.register(reservationsRoutes);
-await app.register(clientsRoutes);
-await app.register(invitationsRoutes);
+async function start() {
+  if (!isAuthRequired()) {
+    app.log.warn(
+      "REQUIRE_AUTH=false : toutes les routes métier sont accessibles sans jeton. " +
+        "OK en dev/Expo Go, jamais acceptable en production."
+    );
+  }
 
-const port = Number(process.env.PORT ?? 3000);
+  await app.register(sallesRoutes);
+  await app.register(tablesRoutes);
+  await app.register(checklistsRoutes);
+  await app.register(reservationsRoutes);
+  await app.register(clientsRoutes);
+  await app.register(invitationsRoutes);
+  await app.register(platformRoutes);
+  await app.register(stockRoutes);
+  await app.register(menuRoutes);
 
-app.listen({ port, host: "0.0.0.0" }).catch((err) => {
+  const port = Number(process.env.PORT ?? 3000);
+  await app.listen({ port, host: "0.0.0.0" });
+}
+
+start().catch((err) => {
   app.log.error(err);
   process.exit(1);
 });

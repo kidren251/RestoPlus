@@ -85,11 +85,13 @@ interface PlanDeSalleProps {
   isAdmin?: boolean;
   layoutLocked?: boolean;
   role?: AccessRole;
+  onToggleLayoutLock?: () => void;
+  onOpenConfigurator?: () => void;
   onTablePress?: (tableId: string) => void;
   onClientPress?: (tableId: string) => void;
 }
 
-export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, role = "serveur", onTablePress, onClientPress }: PlanDeSalleProps) {
+export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, role = "serveur", onToggleLayoutLock, onOpenConfigurator, onTablePress, onClientPress }: PlanDeSalleProps) {
   const salle = useSalleStore((s) => s.salle);
   const moveTable = useSalleStore((s) => s.moveTable);
   const setStatutTable = useSalleStore((s) => s.setStatutTable);
@@ -194,11 +196,30 @@ export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, rol
 
       <Legende />
 
+      {isAdmin && (
+        <View style={styles.adminToolbar}>
+          <View style={styles.adminToolbarCopy}>
+            <Text style={styles.adminToolbarEyebrow}>ADMINISTRATION DU PLAN</Text>
+            <Text style={styles.adminToolbarHint}>
+              {layoutLocked ? "Plan verrouillé · les tables ne bougent plus" : "Mode édition · déplacez les tables"}
+            </Text>
+          </View>
+          <View style={styles.adminToolbarActions}>
+            <Pressable style={[styles.adminToolButton, layoutLocked && styles.adminToolButtonActive]} onPress={onToggleLayoutLock}>
+              <Text style={[styles.adminToolLabel, layoutLocked && styles.adminToolLabelActive]}>{layoutLocked ? "Déverrouiller" : "Verrouiller"}</Text>
+            </Pressable>
+            <Pressable style={[styles.adminToolButton, styles.adminToolButtonPrimary]} onPress={onOpenConfigurator}>
+              <Text style={styles.adminToolLabelPrimary}>Configurer</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       <TableEditPanel
         table={panelTable}
         serviceState={panelTable ? serviceStates[panelTable.id] : undefined}
-        canEditService={isAdmin || role === "manager_admin" || role === "chef_rang"}
-        canEditLayout={isAdmin || role === "manager_admin"}
+          canEditService={isAdmin || role === "manager_admin" || role === "directeur_admin" || role === "chef_rang"}
+          canEditLayout={isAdmin || role === "manager_admin" || role === "directeur_admin"}
         onClientPress={onClientPress}
         visible={!!panelTable}
         onClose={() => setPanelTableId(null)}
@@ -695,6 +716,47 @@ const styles = StyleSheet.create({
     color: COLORS.blancCreme,
     fontSize: 11,
   },
+  adminToolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#19324D",
+    borderWidth: 1,
+    borderColor: "#38516B",
+  },
+  adminToolbarCopy: { flex: 1 },
+  adminToolbarEyebrow: {
+    color: COLORS.or,
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.7,
+  },
+  adminToolbarHint: {
+    color: COLORS.blancCreme,
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: 3,
+    opacity: 0.78,
+  },
+  adminToolbarActions: { gap: 6 },
+  adminToolButton: {
+    minWidth: 108,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#60748A",
+    borderRadius: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+  adminToolButtonActive: { borderColor: COLORS.or, backgroundColor: "#263D55" },
+  adminToolButtonPrimary: { borderColor: COLORS.or, backgroundColor: COLORS.or },
+  adminToolLabel: { color: COLORS.blancCreme, fontSize: 10, fontWeight: "700" },
+  adminToolLabelActive: { color: COLORS.or },
+  adminToolLabelPrimary: { color: COLORS.bleuNuit, fontSize: 10, fontWeight: "700" },
   panel: {
     position: "absolute",
     top: 0,

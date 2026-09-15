@@ -2,23 +2,24 @@ import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
+import type { Pole } from "@resto-plus/types";
 import { api } from "../api/client";
 
 export function InviterEquipierScreen({ onBack, onOpenScanner }: { onBack: () => void; onOpenScanner: () => void }) {
   const [durationHours, setDurationHours] = useState(48);
-  const [invitation, setInvitation] = useState<{ token: string; expiresAt: string } | null>(null);
+  const [pole, setPole] = useState<Extract<Pole, "salle" | "cuisine">>("salle");
+  const [invitation, setInvitation] = useState<{ token: string; expiresAt: string; pole: Pole } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const generate = async () => {
     setIsLoading(true);
+    setError("");
     try {
-      const result = await api.post<{ token: string; expiresAt: string }>("/invitations", { durationHours });
+      const result = await api.post<{ token: string; expiresAt: string; pole: Pole }>("/invitations", { durationHours, pole });
       setInvitation(result);
     } catch {
-      setInvitation({
-        token: `demo-${Date.now()}`,
-        expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString(),
-      });
+      setError("Impossible de créer l’invitation. Vérifie que le téléphone utilise la même API que celui qui scannera le code.");
     } finally {
       setIsLoading(false);
     }
@@ -33,6 +34,15 @@ export function InviterEquipierScreen({ onBack, onOpenScanner }: { onBack: () =>
 
         {!invitation ? (
           <>
+            <Text style={styles.label}>Pôle de l’équipier</Text>
+            <View style={styles.durationRow}>
+              {(["salle", "cuisine"] as const).map((candidate) => (
+                <Pressable key={candidate} style={[styles.duration, pole === candidate && styles.durationActive]} onPress={() => setPole(candidate)}>
+                  <Text style={[styles.durationLabel, pole === candidate && styles.durationLabelActive]}>{candidate === "salle" ? "Salle" : "Cuisine"}</Text>
+                </Pressable>
+              ))}
+            </View>
+
             <Text style={styles.label}>Durée de l’accès</Text>
             <View style={styles.durationRow}>
               {[24, 48, 72].map((hours) => (
@@ -44,13 +54,14 @@ export function InviterEquipierScreen({ onBack, onOpenScanner }: { onBack: () =>
             <Pressable style={styles.primaryButton} onPress={() => void generate()} disabled={isLoading}>
               {isLoading ? <ActivityIndicator color={colors.gold} /> : <Text style={styles.primaryLabel}>Générer le QR code</Text>}
             </Pressable>
+            {!!error && <Text style={styles.error}>{error}</Text>}
           </>
         ) : (
           <View style={styles.qrBlock}>
             <QRCode value={`resto-plus://join/${invitation.token}`} size={210} backgroundColor={colors.creamLight} color={colors.navy} />
             <Text style={styles.qrHint}>À scanner depuis l’application Restau Plus</Text>
             <Text style={styles.expiry}>Expire le {new Date(invitation.expiresAt).toLocaleString("fr-FR")}</Text>
-            <Text style={styles.role}>Accès accordé : serveur · niveau-0 · usage unique</Text>
+            <Text style={styles.role}>Accès accordé : {invitation.pole === "cuisine" ? "cuisine" : "salle"} · serveur · niveau-0 · usage unique</Text>
             <Pressable style={styles.secondaryButton} onPress={() => setInvitation(null)}><Text style={styles.secondaryLabel}>Générer une nouvelle invitation</Text></Pressable>
           </View>
         )}
@@ -76,6 +87,7 @@ const styles = StyleSheet.create({
   durationLabelActive: { color: colors.gold },
   primaryButton: { alignItems: "center", backgroundColor: colors.navy, borderRadius: radii.card, paddingVertical: 13, marginTop: spacing.lg },
   primaryLabel: { color: colors.gold, fontWeight: "600" },
+  error: { color: colors.statusOccupied, fontSize: 11, lineHeight: 16, marginTop: spacing.md, textAlign: "center" },
   qrBlock: { alignItems: "center", backgroundColor: colors.creamLight, borderRadius: radii.card, padding: spacing.lg },
   qrHint: { color: colors.navy, fontSize: 12, textAlign: "center", marginTop: spacing.md },
   expiry: { color: colors.textMuted, fontSize: 10, textAlign: "center", marginTop: spacing.sm },

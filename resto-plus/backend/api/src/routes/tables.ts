@@ -86,6 +86,14 @@ export async function tablesRoutes(app: FastifyInstance) {
     return { tableId: req.params.id, status: "a_nettoyer", billedAt: req.body.occurredAt };
   });
 
+  app.put<{ Params: { id: string }; Body: { tableId: string; menuItemId: string; quantite: number; orderedAt: string } }>("/tables/:id/dish-order", async (req) => ({
+    tableId: req.params.id,
+    menuItemId: req.body.menuItemId,
+    quantite: req.body.quantite,
+    status: "en_attente",
+    orderedAt: req.body.orderedAt,
+  }));
+
   app.put<{ Params: { id: string }; Body: { tableId: string; lineId: string; reclameAt: string } }>("/tables/:id/dish-request", async (req) => ({
     tableId: req.params.id,
     lineId: req.body.lineId,

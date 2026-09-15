@@ -62,21 +62,37 @@ côté API mock. La diffusion multi-appareils via Supabase Realtime reste l'éta
 ## Cloisonnement multi-restaurant
 
 Le produit est multi-tenant : un restaurant est une frontière de données stricte.
-Les utilisateurs sont reliés à un restaurant par `restaurant_members`, avec un rôle
-`manager_admin`, `chef_rang` ou `serveur`. Les salles, tables, clients, réservations et
+Les utilisateurs sont reliés à un restaurant par `restaurant_members`, avec un niveau
+`N0 serveur`, `N1 chef_rang`, `N2 manager_admin` ou `N3 directeur_admin`. Les salles, tables, clients, réservations et
 événements de service portent un `restaurant_id`.
 
-En production, chaque requête devra être filtrée par le restaurant issu de la session
-authentifiée. Les policies Supabase RLS devront empêcher toute lecture ou écriture hors
-de ce périmètre, y compris si un utilisateur modifie directement un identifiant dans
-une requête. Il ne faut pas utiliser le nom du restaurant ou un paramètre mobile comme
-preuve d'appartenance.
+Le niveau `N4 dev_creator` est un rôle de plateforme séparé. Il n'est pas membre d'un
+restaurant par défaut et sa console de création d'univers doit rester invisible aux
+comptes restaurant. Toute action N4 devra être contrôlée côté API, jamais par un simple
+geste caché dans l'application mobile.
 
-Le backend possède désormais un premier garde-fou d'authentification Bearer : avec
-`REQUIRE_AUTH=true`, les routes métier refusent les requêtes sans token, vérifient le
-token auprès de Supabase Auth et exigent une appartenance active à un restaurant. Le
-client mobile sait transmettre le token via son client HTTP. Cette étape ne remplace
-pas encore les policies RLS ni le filtrage métier de chaque requête.
+En production, chaque requête est filtrée par le restaurant issu de la session
+authentifiée. Les policies Supabase RLS (migration `0006_row_level_security.sql`)
+empêchent toute lecture ou écriture hors de ce périmètre au niveau Postgres lui-même,
+y compris si un utilisateur modifie directement un identifiant dans une requête — donc
+même si le filtrage métier applicatif a un trou. Il ne faut pas utiliser le nom du
+restaurant ou un paramètre mobile comme preuve d'appartenance.
+
+Important : le backend doit interroger Supabase avec `SUPABASE_SERVICE_ROLE_KEY` (pas
+la clé anon) pour ses propres requêtes internes (ex: lookup de membership dans
+`auth.ts`), puisque ces requêtes ne portent pas la session de l'utilisateur final — la
+RLS basée sur `auth.uid()` les bloquerait sinon silencieusement. L'autorisation par
+utilisateur reste vérifiée en code (`auth.ts`), la RLS est une deuxième ligne de
+défense, en particulier pour tout accès direct mobile → Supabase (Realtime).
+
+Le backend possède un garde-fou d'authentification Bearer : en production
+(`NODE_ENV=production`), l'authentification est exigée par défaut — `REQUIRE_AUTH=false`
+est refusé au démarrage. Hors production (dev local, tests Expo Go sans Supabase
+configuré), elle reste optionnelle par défaut pour ne pas bloquer les tests en mode
+mock ; il faut poser `REQUIRE_AUTH=true` explicitement pour l'exiger localement. Quand
+elle est active, les routes métier refusent les requêtes sans token, vérifient le token
+auprès de Supabase Auth et exigent une appartenance active à un restaurant. Le client
+mobile sait transmettre le token via son client HTTP.
 
 L'intégration physique d'un équipier temporaire se fait dans l'application par invitation
 QR. Un manager authentifié génère une invitation serveur à usage unique avec expiration.

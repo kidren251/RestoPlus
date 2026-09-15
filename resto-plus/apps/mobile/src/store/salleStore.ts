@@ -182,6 +182,7 @@ interface SalleState {
   updateSalleConfiguration: (updates: { nom?: string; largeurCanvas?: number; hauteurCanvas?: number }) => void;
   addTable: (input: { nom: string; capacite: number; forme: Table["forme"] }) => void;
   removeTable: (tableId: string) => void;
+  addLignePlat: (tableId: string, nom: string, quantite: number) => void;
   requestDish: (tableId: string, lineId?: string) => void;
   markDishReady: (tableId: string, lineId: string) => void;
   markAlertRead: (alertId: string) => void;
@@ -352,6 +353,21 @@ export const useSalleStore = create<SalleState>((set, get) => ({
       },
     }));
     enqueueSync("client_upsert", savedClient);
+  },
+
+  addLignePlat: (tableId, nom, quantite) => {
+    const orderedAt = new Date().toISOString();
+    const ligne: LignePlat = {
+      id: `l_${Date.now()}`,
+      nom,
+      quantite,
+      statut: "en_attente",
+    };
+    set((state) => {
+      const commande = state.commandes[tableId] ?? { tableId, lignes: [] };
+      return { commandes: { ...state.commandes, [tableId]: { ...commande, lignes: [...commande.lignes, ligne] } } };
+    });
+    enqueueSync("dish_order", { tableId, menuItemId: ligne.id, quantite, orderedAt });
   },
 
   requestDish: (tableId, lineId) => {

@@ -12,14 +12,17 @@ import { ClientEditionScreen } from "../screens/ClientEditionScreen";
 import { ConfigurateurSalleScreen } from "../screens/ConfigurateurSalleScreen";
 import { EspaceEquipeScreen } from "../screens/EspaceEquipeScreen";
 import { CommandesCuisineScreen } from "../screens/CommandesCuisineScreen";
+import { StockScreen } from "../screens/StockScreen";
+import { StockItemDetailScreen } from "../screens/StockItemDetailScreen";
 import { InviterEquipierScreen } from "../screens/InviterEquipierScreen";
 import { ScannerInvitationScreen } from "../screens/ScannerInvitationScreen";
 import { LoginScreen } from "../screens/LoginScreen";
 import { GestionAccesScreen } from "../screens/GestionAccesScreen";
+import { DevCreatorPanelScreen } from "../screens/DevCreatorPanelScreen";
 import PlanDeSalle from "../components/PlanDeSalle";
 import { useSalleStore } from "../store/salleStore";
 import { useChecklistStore } from "../store/checklistStore";
-import type { AccessRole } from "@resto-plus/types";
+import type { AccessRole, Pole, PlatformRole } from "@resto-plus/types";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -33,9 +36,12 @@ export type RootStackParamList = {
   EspaceCuisine: undefined;
   EspaceSalle: undefined;
   CommandesCuisine: undefined;
+  Stock: undefined;
+  StockItem: { itemId: string };
   InviterEquipier: undefined;
   ScannerInvitation: undefined;
   GestionAcces: undefined;
+  DevCreator: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -127,49 +133,47 @@ const headerStyles = StyleSheet.create({
   },
 });
 
+function RestrictedMessage({ text }: { text: string }) {
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, backgroundColor: colors.cream }}>
+      <Text style={{ color: colors.navy, fontFamily: typography.serif, fontSize: 18, textAlign: "center" }}>{text}</Text>
+    </View>
+  );
+}
+
 function PlanSalleWithToggle({ onBack, onOpenClient, onOpenConfigurator }: { onBack: () => void; onOpenClient: (tableId: string) => void; onOpenConfigurator: () => void }) {
   const [role, setRole] = useState<AccessRole>("manager_admin");
   const [layoutLocked, setLayoutLocked] = useState(false);
-  const isAdmin = role === "manager_admin";
-  const roleLabel = role === "manager_admin" ? "ADM" : role === "access_admin" ? "A-ADM" : role === "chef_rang" ? "R1" : "R0";
+  const isAdmin = role === "manager_admin" || role === "directeur_admin";
+  const roleLabel = role === "directeur_admin" ? "N3" : role === "manager_admin" ? "N2" : role === "chef_rang" ? "N1" : "N0";
   const nextRole: Record<AccessRole, AccessRole> = {
-    manager_admin: "access_admin",
-    access_admin: "chef_rang",
-    chef_rang: "serveur",
-    serveur: "manager_admin",
+    serveur: "chef_rang",
+    chef_rang: "manager_admin",
+    manager_admin: "directeur_admin",
+    directeur_admin: "serveur",
   };
 
   return (
     <View style={{ flex: 1 }}>
       <CustomHeader
-        title={isAdmin ? "Plan de salle — Édition" : `Plan de salle — ${role === "access_admin" ? "Admin des accès" : role === "chef_rang" ? "Chef de rang" : "Serveur"}`}
+        title={isAdmin ? "Plan de salle — Édition" : `Plan de salle — ${role === "chef_rang" ? "Chef de rang" : "Serveur"}`}
         onBack={onBack}
         rightAction={
-          <View style={headerStyles.actions}>
-            {isAdmin && (
-              <>
-                <Pressable onPress={() => setLayoutLocked((locked) => !locked)} hitSlop={10} style={headerStyles.actionButton}>
-                  <Text style={headerStyles.lockLabel}>{layoutLocked ? "LOCK" : "EDIT"}</Text>
-                </Pressable>
-                <Pressable onPress={onOpenConfigurator} hitSlop={10} style={headerStyles.actionButton}>
-                  <Text style={headerStyles.configLabel}>CFG</Text>
-                </Pressable>
-              </>
-            )}
-            <Pressable
-              onPress={() => setRole((current) => nextRole[current])}
-              hitSlop={16}
-              style={headerStyles.actionButton}
-            >
-              <Text style={headerStyles.adminToggle}>{roleLabel}</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => setRole((current) => nextRole[current])}
+            hitSlop={16}
+            style={headerStyles.actionButton}
+          >
+            <Text style={headerStyles.adminToggle}>{roleLabel}</Text>
+          </Pressable>
         }
       />
       <PlanDeSalle
         isAdmin={isAdmin}
         layoutLocked={layoutLocked}
         role={role}
+        onToggleLayoutLock={() => setLayoutLocked((locked) => !locked)}
+        onOpenConfigurator={onOpenConfigurator}
         onTablePress={(tableId) => {
           if (role === "chef_rang") {
             const table = useSalleStore.getState().getTable(tableId);
@@ -184,7 +188,15 @@ function PlanSalleWithToggle({ onBack, onOpenClient, onOpenConfigurator }: { onB
 
 export function AppNavigator() {
   const [authenticated, setAuthenticated] = useState(false);
-  const [currentAccessRole, setCurrentAccessRole] = useState<AccessRole>("manager_admin");
+  // Rôle et pôle métier de l'utilisateur courant : déterminent les espaces équipe
+  // visibles (cuisine vs salle) et les droits d'administration. Résolus depuis le
+  // compte de démo choisi à l'écran de connexion (voir docs/comptes-demo.md) ; pour
+  // un accès temporaire (QR d'invitation), le pôle vient de l'invitation elle-même.
+  const [currentAccessRole, setCurrentAccessRole] = useState<AccessRole>("directeur_admin");
+  const [currentPole, setCurrentPole] = useState<Pole>("direction");
+  const [platformRole] = useState<PlatformRole>(
+    process.env.EXPO_PUBLIC_PLATFORM_ROLE === "dev_creator" ? "dev_creator" : "restaurant_user"
+  );
   const { loadSalle } = useSalleStore();
   const { getNombreEnAttente } = useChecklistStore();
 
@@ -195,7 +207,7 @@ export function AppNavigator() {
           <Stack.Screen name="Login">
             {({ navigation }) => (
               <LoginScreen
-                onLogin={() => { setCurrentAccessRole("manager_admin"); setAuthenticated(true); }}
+                onLogin={(account) => { setCurrentAccessRole(account.accessRole); setCurrentPole(account.pole); setAuthenticated(true); }}
                 onTemporaryAccess={() => navigation.navigate("ScannerInvitation")}
               />
             )}
@@ -204,7 +216,7 @@ export function AppNavigator() {
             {({ navigation }) => (
               <View style={{ flex: 1 }}>
                 <CustomHeader title="Rejoindre un restaurant" onBack={() => navigation.goBack()} />
-                <ScannerInvitationScreen onBack={() => navigation.goBack()} onAccessGranted={() => { setCurrentAccessRole("serveur"); setAuthenticated(true); }} />
+                <ScannerInvitationScreen onBack={() => navigation.goBack()} onAccessGranted={(pole) => { setCurrentAccessRole("serveur"); setCurrentPole(pole); setAuthenticated(true); }} />
               </View>
             )}
           </Stack.Screen>
@@ -223,8 +235,10 @@ export function AppNavigator() {
             <AccueilScreen
               prenomUtilisateur="Chef"
               nomEtablissement="Le Grand Palais"
+              pole={currentPole}
               espaceActif="operationnel"
               onChangerEspace={() => {}}
+              onOpenCreatorPanel={platformRole === "dev_creator" ? () => navigation.navigate("DevCreator") : undefined}
               onNaviguer={(dest) => {
                 if (dest === "plan_salle") {
                   loadSalle();
@@ -286,13 +300,18 @@ export function AppNavigator() {
           {({ navigation }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Espace cuisine" onBack={() => navigation.goBack()} />
-              <EspaceEquipeScreen
-                espace="cuisine"
-                onNavigate={(destination) => {
-                  if (destination === "checklists") navigation.navigate("Checklist");
-                  if (destination === "commandes_cuisine") navigation.navigate("CommandesCuisine");
-                }}
-              />
+              {currentPole === "cuisine" || currentPole === "direction" ? (
+                <EspaceEquipeScreen
+                  espace="cuisine"
+                  onNavigate={(destination) => {
+                    if (destination === "checklists") navigation.navigate("Checklist");
+                    if (destination === "commandes_cuisine") navigation.navigate("CommandesCuisine");
+                    if (destination === "gestion_stocks") navigation.navigate("Stock");
+                  }}
+                />
+              ) : (
+                <RestrictedMessage text="Cet espace est réservé au pôle cuisine." />
+              )}
             </View>
           )}
         </Stack.Screen>
@@ -301,20 +320,27 @@ export function AppNavigator() {
           {({ navigation }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Espace équipe de salle" onBack={() => navigation.goBack()} />
-              <EspaceEquipeScreen
-                espace="salle"
-                canManageAccess={currentAccessRole === "manager_admin" || currentAccessRole === "access_admin"}
-                onNavigate={(destination) => {
-                  if (destination === "plan_salle") {
-                    loadSalle();
-                    navigation.navigate("PlanSalle");
-                  }
-                  if (destination === "fiches_vip") navigation.navigate("Reservations");
-                  if (destination === "taches_salle") navigation.navigate("TachesSalle");
-                  if (destination === "inviter_equipier") navigation.navigate("InviterEquipier");
-                  if (destination === "gestion_acces") navigation.navigate("GestionAcces");
-                }}
-              />
+              {currentPole === "salle" || currentPole === "direction" ? (
+                <EspaceEquipeScreen
+                  espace="salle"
+                  canManageAccess={currentAccessRole === "manager_admin" || currentAccessRole === "directeur_admin"}
+                  canManageLayout={currentAccessRole === "manager_admin" || currentAccessRole === "directeur_admin"}
+                  canManageInvitations={currentAccessRole === "directeur_admin"}
+                  onNavigate={(destination) => {
+                    if (destination === "plan_salle") {
+                      loadSalle();
+                      navigation.navigate("PlanSalle");
+                    }
+                    if (destination === "fiches_vip") navigation.navigate("Reservations");
+                    if (destination === "taches_salle") navigation.navigate("TachesSalle");
+                    if (destination === "inviter_equipier") navigation.navigate("InviterEquipier");
+                    if (destination === "gestion_acces") navigation.navigate("GestionAcces");
+                    if (destination === "configurateur_salle") navigation.navigate("ConfigurateurSalle");
+                  }}
+                />
+              ) : (
+                <RestrictedMessage text="Cet espace est réservé au pôle salle." />
+              )}
             </View>
           )}
         </Stack.Screen>
@@ -324,6 +350,27 @@ export function AppNavigator() {
             <View style={{ flex: 1 }}>
               <CustomHeader title="Suivi des plats" onBack={() => navigation.goBack()} />
               <CommandesCuisineScreen />
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Stock">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Gestion des stocks" onBack={() => navigation.goBack()} />
+              <StockScreen
+                canAdjust={currentAccessRole !== "serveur"}
+                onOpenItem={(itemId) => navigation.navigate("StockItem", { itemId })}
+              />
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="StockItem">
+          {({ navigation, route }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Article en stock" onBack={() => navigation.goBack()} />
+              <StockItemDetailScreen itemId={route.params.itemId} canAdjust={currentAccessRole !== "serveur"} />
             </View>
           )}
         </Stack.Screen>
@@ -344,7 +391,7 @@ export function AppNavigator() {
           {({ navigation }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Scanner une invitation" onBack={() => navigation.goBack()} />
-              <ScannerInvitationScreen onBack={() => navigation.goBack()} onAccessGranted={() => {}} />
+              <ScannerInvitationScreen onBack={() => navigation.goBack()} onAccessGranted={() => navigation.goBack()} />
             </View>
           )}
         </Stack.Screen>
@@ -357,6 +404,19 @@ export function AppNavigator() {
                 onBack={() => navigation.goBack()}
                 onInvite={() => navigation.navigate("InviterEquipier")}
               />
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="DevCreator">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Console créateur" onBack={() => navigation.goBack()} />
+              {platformRole === "dev_creator" ? (
+                <DevCreatorPanelScreen onBack={() => navigation.goBack()} />
+              ) : (
+                <RestrictedMessage text="Accès réservé au niveau N4." />
+              )}
             </View>
           )}
         </Stack.Screen>

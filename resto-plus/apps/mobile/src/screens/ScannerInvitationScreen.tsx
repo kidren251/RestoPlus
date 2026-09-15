@@ -2,14 +2,17 @@ import React, { useState } from "react";
 import { Button, StyleSheet, Text, TextInput, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { colors, spacing, typography } from "@resto-plus/ui-luxury";
+import type { Pole } from "@resto-plus/types";
 import { api } from "../api/client";
 
-export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: () => void; onAccessGranted?: () => void }) {
+export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: () => void; onAccessGranted?: (pole: Pole) => void }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [token, setToken] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [message, setMessage] = useState("");
   const [scanned, setScanned] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+  const [pole, setPole] = useState<Pole>("salle");
 
   if (!permission) return <View style={styles.center}><Text>Préparation de la caméra…</Text></View>;
   if (!permission.granted) {
@@ -26,9 +29,12 @@ export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: (
   const redeem = async () => {
     if (!token || !displayName.trim()) return;
     try {
-      await api.post("/invitations/redeem", { token, displayName });
-      setMessage("Invitation acceptée. Accès serveur activé.");
-      onAccessGranted?.();
+      const result = await api.post<{ pole?: Pole }>("/invitations/redeem", { token, displayName });
+      const grantedPole = result.pole ?? "salle";
+      setPole(grantedPole);
+      setMessage(`Invitation acceptée. Accès ${grantedPole === "cuisine" ? "cuisine" : "salle"} activé.`);
+      setAccepted(true);
+      onAccessGranted?.(grantedPole);
     } catch {
       setMessage("Invitation invalide, expirée ou déjà utilisée.");
     }
@@ -57,7 +63,7 @@ export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: (
           <Button title="Scanner un autre code" onPress={() => { setToken(null); setScanned(false); setMessage(""); }} />
         </View>
       )}
-      <Button title="Retour" onPress={onBack} />
+      <Button title={accepted ? "Continuer" : "Retour"} onPress={accepted ? () => onAccessGranted?.(pole) : onBack} />
     </View>
   );
 }

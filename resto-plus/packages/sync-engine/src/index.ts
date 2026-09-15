@@ -20,11 +20,14 @@ export type SyncActionType =
   | "table_open"
   | "table_bill_sent"
   | "client_upsert"
+  | "dish_order"
   | "dish_request"
   | "dish_ready"
   | "reservation_create"
   | "reservation_cancel"
-  | "message_send";
+  | "message_send"
+  | "stock_movement"
+  | "stock_item_create";
 
 export interface QueuedAction<T = unknown> {
   id: string;

@@ -1,36 +1,43 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { colors, typography, radii, spacing } from "@resto-plus/ui-luxury";
+import type { Pole } from "@resto-plus/types";
 import { useSyncStore } from "../store/syncStore";
 
 interface AccueilScreenProps {
   prenomUtilisateur: string;
   nomEtablissement: string;
+  pole: Pole;
   espaceActif: "operationnel" | "academie";
   onChangerEspace: (espace: "operationnel" | "academie") => void;
   onNaviguer: (destination: string) => void;
+  onOpenCreatorPanel?: () => void;
   checklistsEnAttente: number;
   arriveesVip: number;
 }
 
 const ACCES_RAPIDES = [
-  { id: "plan_salle", label: "Plan de salle", numero: "01" },
-  { id: "checklists", label: "Checklists HACCP", numero: "02" },
-  { id: "fiches_vip", label: "Réservations du soir", numero: "03" },
-  { id: "taches_salle", label: "Tâches équipe de salle", numero: "04" },
-  { id: "scanner_invitation", label: "Rejoindre un restaurant", numero: "05" },
+  { id: "plan_salle", label: "Plan de salle", numero: "01", pole: "salle" },
+  { id: "checklists", label: "Checklists HACCP", numero: "02", pole: "cuisine" },
+  { id: "fiches_vip", label: "Réservations du soir", numero: "03", pole: "salle" },
+  { id: "taches_salle", label: "Tâches équipe de salle", numero: "04", pole: "salle" },
+  { id: "scanner_invitation", label: "Rejoindre un restaurant", numero: "05", pole: null },
 ] as const;
 
 export function AccueilScreen({
   prenomUtilisateur,
   nomEtablissement,
+  pole,
   espaceActif,
   onChangerEspace,
   onNaviguer,
+  onOpenCreatorPanel,
   checklistsEnAttente,
   arriveesVip,
 }: AccueilScreenProps) {
   const { isOnline, pendingCount } = useSyncStore();
+
+  const accesRapides = ACCES_RAPIDES.filter((item) => item.pole === null || pole === "direction" || item.pole === pole);
 
   const badges: Record<string, string | undefined> = {
     checklists:
@@ -54,7 +61,9 @@ export function AccueilScreen({
           <Text style={styles.sealIcon}>◆</Text>
         </View>
         <Text style={styles.brand}>{nomEtablissement}</Text>
-        <Text style={styles.wordmark}>P A L A C E O S</Text>
+        <Pressable onLongPress={onOpenCreatorPanel} disabled={!onOpenCreatorPanel}>
+          <Text style={styles.wordmark}>P A L A C E O S</Text>
+        </Pressable>
       </View>
 
       <View style={styles.tabs}>
@@ -75,7 +84,7 @@ export function AccueilScreen({
       <Text style={styles.sectionLabel}>CE SOIR</Text>
 
       <View>
-        {ACCES_RAPIDES.map((item) => (
+        {accesRapides.map((item) => (
           <Pressable
             key={item.id}
             onPress={() => onNaviguer(item.id)}
@@ -93,14 +102,18 @@ export function AccueilScreen({
 
       <Text style={[styles.sectionLabel, styles.teamSectionLabel]}>ESPACES ÉQUIPE</Text>
       <View>
-        <Pressable onPress={() => onNaviguer("espace_cuisine")} style={({ pressed }) => [styles.teamRow, pressed && styles.rowPressed]}>
-          <Text style={styles.teamLabel}>Espace cuisine</Text>
-          <Text style={styles.rowChevron}>›</Text>
-        </Pressable>
-        <Pressable onPress={() => onNaviguer("espace_salle")} style={({ pressed }) => [styles.teamRow, pressed && styles.rowPressed]}>
-          <Text style={styles.teamLabel}>Espace équipe de salle</Text>
-          <Text style={styles.rowChevron}>›</Text>
-        </Pressable>
+        {(pole === "cuisine" || pole === "direction") && (
+          <Pressable onPress={() => onNaviguer("espace_cuisine")} style={({ pressed }) => [styles.teamRow, pressed && styles.rowPressed]}>
+            <Text style={styles.teamLabel}>Espace cuisine</Text>
+            <Text style={styles.rowChevron}>›</Text>
+          </Pressable>
+        )}
+        {(pole === "salle" || pole === "direction") && (
+          <Pressable onPress={() => onNaviguer("espace_salle")} style={({ pressed }) => [styles.teamRow, pressed && styles.rowPressed]}>
+            <Text style={styles.teamLabel}>Espace équipe de salle</Text>
+            <Text style={styles.rowChevron}>›</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Pied de page : prenom utilisateur */}

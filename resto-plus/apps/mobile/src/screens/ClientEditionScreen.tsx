@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import { useSalleStore } from "../store/salleStore";
+import { useMenuStore } from "../store/menuStore";
 
 export function ClientEditionScreen({
   tableId,
@@ -13,10 +14,25 @@ export function ClientEditionScreen({
   const service = useSalleStore((state) => state.serviceStates[tableId]);
   const saveClient = useSalleStore((state) => state.saveClient);
   const sendAddition = useSalleStore((state) => state.sendAddition);
+  const commande = useSalleStore((state) => state.commandes[tableId]);
   const [nom, setNom] = useState(service?.client?.nom ?? service?.clientName ?? "");
   const [telephone, setTelephone] = useState(service?.client?.telephone ?? "");
   const [allergies, setAllergies] = useState(service?.client?.allergies?.join(", ") ?? "");
   const [notes, setNotes] = useState(service?.client?.notes ?? "");
+
+  const menuItems = useMenuStore((state) => state.items);
+  const loadMenu = useMenuStore((state) => state.loadMenu);
+  const commanderPlat = useMenuStore((state) => state.commanderPlat);
+  const [commandeError, setCommandeError] = useState("");
+
+  useEffect(() => {
+    loadMenu();
+  }, [loadMenu]);
+
+  const commander = (menuItemId: string) => {
+    const result = commanderPlat(tableId, menuItemId, 1);
+    setCommandeError(result.ok ? "" : result.error);
+  };
 
   const enregistrer = () => {
     if (!nom.trim()) return;
@@ -52,6 +68,27 @@ export function ClientEditionScreen({
       <Text style={styles.label}>Notes client</Text>
       <TextInput style={[styles.input, styles.notesInput]} value={notes} onChangeText={setNotes} multiline placeholder="Préférences, occasion, attention particulière..." />
 
+      <Text style={styles.sectionLabel}>COMMANDER UN PLAT</Text>
+      <View style={styles.menuList}>
+        {menuItems.map((item) => (
+          <Pressable key={item.id} onPress={() => commander(item.id)} style={styles.menuRow}>
+            <View style={styles.menuCopy}>
+              <Text style={styles.menuNom}>{item.nom}</Text>
+              <Text style={styles.menuPrix}>{item.prixVente.toFixed(2)} €</Text>
+            </View>
+            <Text style={styles.menuAdd}>＋ Commander</Text>
+          </Pressable>
+        ))}
+      </View>
+      {!!commandeError && <Text style={styles.error}>{commandeError}</Text>}
+      {commande && commande.lignes.length > 0 && (
+        <View style={styles.commandeList}>
+          {commande.lignes.map((ligne) => (
+            <Text key={ligne.id} style={styles.commandeLigne}>{ligne.quantite}× {ligne.nom}</Text>
+          ))}
+        </View>
+      )}
+
       <Pressable style={styles.saveButton} onPress={enregistrer}>
         <Text style={styles.saveLabel}>Enregistrer la fiche</Text>
       </Pressable>
@@ -74,6 +111,16 @@ const styles = StyleSheet.create({
   label: { color: colors.textMuted, fontSize: 10, marginTop: spacing.md, marginBottom: 5 },
   input: { borderWidth: 1, borderColor: colors.creamBorder, borderRadius: radii.card, backgroundColor: colors.creamLight, color: colors.navy, paddingHorizontal: spacing.md, paddingVertical: 11 },
   notesInput: { minHeight: 86, textAlignVertical: "top" },
+  sectionLabel: { color: colors.gold, fontSize: 9, letterSpacing: typography.tracking.label, marginTop: spacing.xl, marginBottom: spacing.sm },
+  menuList: { borderTopWidth: 1, borderTopColor: colors.creamBorder },
+  menuRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: spacing.sm + 4, borderBottomWidth: 1, borderBottomColor: colors.creamBorder },
+  menuCopy: { flex: 1 },
+  menuNom: { color: colors.navy, fontSize: 13 },
+  menuPrix: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  menuAdd: { color: colors.gold, fontSize: 11, fontWeight: "600" },
+  commandeList: { marginTop: spacing.sm },
+  commandeLigne: { color: colors.textMuted, fontSize: 12, marginTop: 3 },
+  error: { color: colors.statusReserved, fontSize: 11, marginTop: spacing.sm },
   saveButton: { backgroundColor: colors.navy, borderRadius: radii.card, alignItems: "center", paddingVertical: 13, marginTop: spacing.xl },
   saveLabel: { color: colors.gold, fontWeight: "600" },
   billButton: { backgroundColor: colors.statusOccupied, borderRadius: radii.card, alignItems: "center", paddingVertical: 13, marginTop: spacing.sm },

@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
+import type { DemoAccount } from "../data/demoAccounts";
+import { findDemoAccount } from "../data/demoAccounts";
 
-export function LoginScreen({ onLogin, onTemporaryAccess }: { onLogin: () => void; onTemporaryAccess: () => void }) {
+export function LoginScreen({ onLogin, onTemporaryAccess }: { onLogin: (account: DemoAccount) => void; onTemporaryAccess: () => void }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -12,8 +14,13 @@ export function LoginScreen({ onLogin, onTemporaryAccess }: { onLogin: () => voi
       setError("Saisis ton identifiant et ton mot de passe.");
       return;
     }
+    const account = findDemoAccount(identifier);
+    if (!account || password !== account.password) {
+      setError("Identifiant ou mot de passe invalide. Voir docs/comptes-demo.md pour les 7 comptes de test.");
+      return;
+    }
     setError("");
-    onLogin();
+    onLogin(account);
   };
 
   return (
@@ -36,6 +43,7 @@ export function LoginScreen({ onLogin, onTemporaryAccess }: { onLogin: () => voi
           <Text style={styles.temporaryHint}>Rejoindre un restaurant avec un QR code</Text>
         </Pressable>
         <Text style={styles.demoNote}>Prototype : l’authentification réelle sera reliée à Supabase Auth.</Text>
+        <Text style={styles.demoNote}>Comptes de test : comptesalle-0 à 3 · comptecuisin-0 à 2 · mot de passe resto2026 (voir docs/comptes-demo.md)</Text>
       </View>
     </View>
   );

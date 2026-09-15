@@ -45,6 +45,9 @@ const sendAction = async (action: QueuedAction): Promise<void> => {
     case "client_upsert":
       await api.post("/clients", action.payload);
       break;
+    case "dish_order":
+      await api.put(`/tables/${(action.payload as { tableId: string }).tableId}/dish-order`, action.payload);
+      break;
     case "dish_request":
       await api.put(`/tables/${(action.payload as { tableId: string }).tableId}/dish-request`, action.payload);
       break;
@@ -62,6 +65,12 @@ const sendAction = async (action: QueuedAction): Promise<void> => {
       break;
     case "message_send":
       await api.post("/messages", action.payload);
+      break;
+    case "stock_item_create":
+      await api.post("/stock-items", action.payload);
+      break;
+    case "stock_movement":
+      await api.post(`/stock-items/${(action.payload as { stockItemId: string }).stockItemId}/movements`, action.payload);
       break;
   }
 };

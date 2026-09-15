@@ -87,12 +87,13 @@ Faire évoluer le prototype Resto Plus / PalaceOS vers un outil opérationnel po
 - Ajout des écrans de génération QR manager et de scan QR intérimaire.
 - Installation de `expo-camera` et `react-native-qrcode-svg` pour le parcours QR Expo Go.
 
-## Rôles fonctionnels
+## Hiérarchie des accès
 
-- `manager_admin` : configuration du plan, supervision et administration du restaurant.
-- `access_admin` : gestion des membres et des accès, sans accès aux fonctions sensibles du manager.
-- `chef_rang` : ouverture des tables, édition client, réclamation et suivi des plats.
-- `serveur` : consultation et opérations de salle autorisées.
+- `N0` / `serveur` : consultation et opérations de salle autorisées.
+- `N1` / `chef_rang` : ouverture des tables, édition client, réclamation et suivi des plats.
+- `N2` / `manager_admin` : configuration du plan, supervision et administration du restaurant.
+- `N3` / `directeur_admin` : administration avancée et supervision d'établissement.
+- `N4` / `dev_creator` : configurateur, créateur et programmeur de la plateforme ; ce niveau est séparé des membres d'un restaurant.
 
 ## Architecture d'univers fermé
 
