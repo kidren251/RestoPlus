@@ -7,9 +7,16 @@ import { useMenuStore } from "../store/menuStore";
 export function ClientEditionScreen({
   tableId,
   onBack,
+  canEditClient,
+  canOrder,
+  serviceLocked,
 }: {
   tableId: string;
   onBack: () => void;
+  canEditClient: boolean;
+  canOrder: boolean;
+  /** Verrou de service du directeur : explique pourquoi les actions sont masquées. */
+  serviceLocked: boolean;
 }) {
   const service = useSalleStore((state) => state.serviceStates[tableId]);
   const saveClient = useSalleStore((state) => state.saveClient);
@@ -54,20 +61,26 @@ export function ClientEditionScreen({
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>TABLE {tableId.replace("t", "")}</Text>
       <Text style={styles.title}>Édition client</Text>
-      <Text style={styles.subtitle}>Créer ou compléter la fiche du client installé à cette table.</Text>
+      <Text style={styles.subtitle}>{canEditClient ? "Créer ou compléter la fiche du client installé à cette table." : "Fiche du client installé à cette table (consultation)."}</Text>
 
       <Text style={styles.label}>Nom du client</Text>
-      <TextInput style={styles.input} value={nom} onChangeText={setNom} placeholder="M. ou Mme Nom" />
+      <TextInput style={styles.input} value={nom} onChangeText={setNom} editable={canEditClient} placeholder="M. ou Mme Nom" />
 
       <Text style={styles.label}>Téléphone</Text>
-      <TextInput style={styles.input} value={telephone} onChangeText={setTelephone} keyboardType="phone-pad" placeholder="Optionnel" />
+      <TextInput style={styles.input} value={telephone} onChangeText={setTelephone} editable={canEditClient} keyboardType="phone-pad" placeholder="Optionnel" />
 
       <Text style={styles.label}>Allergies</Text>
-      <TextInput style={styles.input} value={allergies} onChangeText={setAllergies} placeholder="Séparer par des virgules" />
+      <TextInput style={styles.input} value={allergies} onChangeText={setAllergies} editable={canEditClient} placeholder="Séparer par des virgules" />
 
       <Text style={styles.label}>Notes client</Text>
-      <TextInput style={[styles.input, styles.notesInput]} value={notes} onChangeText={setNotes} multiline placeholder="Préférences, occasion, attention particulière..." />
+      <TextInput style={[styles.input, styles.notesInput]} value={notes} onChangeText={setNotes} editable={canEditClient} multiline placeholder="Préférences, occasion, attention particulière..." />
 
+      {serviceLocked && (
+        <Text style={styles.lockNote}>🔒 Service verrouillé : déverrouille-le depuis le plan de salle pour commander ou modifier la fiche.</Text>
+      )}
+
+      {canOrder && (
+      <>
       <Text style={styles.sectionLabel}>COMMANDER UN PLAT</Text>
       <View style={styles.menuList}>
         {menuItems.map((item) => (
@@ -80,6 +93,8 @@ export function ClientEditionScreen({
           </Pressable>
         ))}
       </View>
+      </>
+      )}
       {!!commandeError && <Text style={styles.error}>{commandeError}</Text>}
       {commande && commande.lignes.length > 0 && (
         <View style={styles.commandeList}>
@@ -89,12 +104,16 @@ export function ClientEditionScreen({
         </View>
       )}
 
-      <Pressable style={styles.saveButton} onPress={enregistrer}>
-        <Text style={styles.saveLabel}>Enregistrer la fiche</Text>
-      </Pressable>
-      <Pressable style={styles.billButton} onPress={envoyerAddition}>
-        <Text style={styles.billLabel}>Envoyer l’addition</Text>
-      </Pressable>
+      {canEditClient && (
+        <>
+          <Pressable style={styles.saveButton} onPress={enregistrer}>
+            <Text style={styles.saveLabel}>Enregistrer la fiche</Text>
+          </Pressable>
+          <Pressable style={styles.billButton} onPress={envoyerAddition}>
+            <Text style={styles.billLabel}>Envoyer l’addition</Text>
+          </Pressable>
+        </>
+      )}
       <Pressable style={styles.backButton} onPress={onBack}>
         <Text style={styles.backLabel}>Retour au plan de salle</Text>
       </Pressable>
@@ -120,6 +139,7 @@ const styles = StyleSheet.create({
   menuAdd: { color: colors.gold, fontSize: 11, fontWeight: "600" },
   commandeList: { marginTop: spacing.sm },
   commandeLigne: { color: colors.textMuted, fontSize: 12, marginTop: 3 },
+  lockNote: { color: colors.navy, fontSize: 11, lineHeight: 16, backgroundColor: colors.creamLight, borderWidth: 1, borderColor: colors.gold, borderRadius: radii.card, padding: spacing.md, marginTop: spacing.xl },
   error: { color: colors.statusReserved, fontSize: 11, marginTop: spacing.sm },
   saveButton: { backgroundColor: colors.navy, borderRadius: radii.card, alignItems: "center", paddingVertical: 13, marginTop: spacing.xl },
   saveLabel: { color: colors.gold, fontWeight: "600" },

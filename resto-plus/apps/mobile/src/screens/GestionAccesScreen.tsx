@@ -27,7 +27,7 @@ const POLE_LABEL: Record<Pole, string> = {
   direction: "Direction (accès aux deux)",
 };
 
-export function GestionAccesScreen({ onBack, onInvite }: { onBack: () => void; onInvite: () => void }) {
+export function GestionAccesScreen({ onBack, onInvite, canChangePole }: { onBack: () => void; onInvite?: () => void; canChangePole: boolean }) {
   const [members, setMembers] = useState(INITIAL_MEMBERS);
 
   useFocusEffect(
@@ -60,7 +60,7 @@ export function GestionAccesScreen({ onBack, onInvite }: { onBack: () => void; o
       <Text style={styles.eyebrow}>UNIVERS RESTAURANT</Text>
       <Text style={styles.title}>Gestion des accès</Text>
       <Text style={styles.subtitle}>Contrôler les membres et les accès temporaires de cet établissement.</Text>
-      <Pressable style={styles.inviteButton} onPress={onInvite}><Text style={styles.inviteLabel}>+ Inviter un équipier</Text></Pressable>
+      {onInvite && <Pressable style={styles.inviteButton} onPress={onInvite}><Text style={styles.inviteLabel}>+ Inviter un équipier</Text></Pressable>}
       <Text style={styles.sectionLabel}>MEMBRES · {members.length}</Text>
       {members.map((member) => (
         <View key={member.id} style={styles.memberCard}>
@@ -72,7 +72,7 @@ export function GestionAccesScreen({ onBack, onInvite }: { onBack: () => void; o
           </View>
           <View style={styles.memberActions}>
             <Text style={[styles.status, member.status === "actif" ? styles.active : member.status === "temporaire" ? styles.temporary : styles.expired]}>{member.status}</Text>
-            {member.status !== "expire" && member.pole !== "direction" && (
+            {canChangePole && member.status !== "expire" && member.pole !== "direction" && (
               <Pressable onPress={() => changePole(member.id)}><Text style={styles.revoke}>Changer de pôle</Text></Pressable>
             )}
             {member.status !== "expire" && member.role !== "manager_admin" && <Pressable onPress={() => revoke(member.id)}><Text style={styles.revoke}>Révoquer</Text></Pressable>}

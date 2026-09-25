@@ -1,12 +1,24 @@
 import type { FastifyInstance } from "fastify";
-import { tableInfos, tablePositions, tableServices, tableStatuts } from "./tableState";
+import { requirePermission } from "../permissions";
+import { restaurantDe } from "../tenant";
+import { tableDuRestaurant } from "./salles";
+import { journaliser } from "../audit";
+import { journalAdditions, tableInfos, tablePositions, tableServices, tableStatuts } from "./tableState";
 
 export async function tablesRoutes(app: FastifyInstance) {
+  // Toutes les routes /tables/:id de ce module : la table doit appartenir au restaurant.
+  app.addHook("preHandler", async (req, reply) => {
+    const { id } = req.params as { id?: string };
+    if (id && !tableDuRestaurant(id, restaurantDe(req))) {
+      return reply.status(404).send({ error: "Table introuvable" });
+    }
+  });
+
   // PUT /tables/:id/statut
   app.put<{
     Params: { id: string };
     Body: { statut: string };
-  }>("/tables/:id/statut", async (req, reply) => {
+  }>("/tables/:id/statut", { preHandler: requirePermission("service.suivre") }, async (req, reply) => {
     const { id } = req.params;
     const { statut } = req.body;
 
@@ -23,7 +35,7 @@ export async function tablesRoutes(app: FastifyInstance) {
   app.put<{
     Params: { id: string };
     Body: { x: number; y: number };
-  }>("/tables/:id/position", async (req, reply) => {
+  }>("/tables/:id/position", { preHandler: requirePermission("salle.configurer") }, async (req, reply) => {
     const { id } = req.params;
     const { x, y } = req.body;
 
@@ -39,7 +51,7 @@ export async function tablesRoutes(app: FastifyInstance) {
   app.put<{
     Params: { id: string };
     Body: { nom?: string; capacite?: number };
-  }>("/tables/:id/info", async (req, reply) => {
+  }>("/tables/:id/info", { preHandler: requirePermission("salle.configurer") }, async (req, reply) => {
     const { nom, capacite } = req.body;
     if (nom !== undefined && (typeof nom !== "string" || !nom.trim())) {
       return reply.status(400).send({ error: "Le nom doit être un texte non vide" });
@@ -60,7 +72,7 @@ export async function tablesRoutes(app: FastifyInstance) {
   app.put<{
     Params: { id: string };
     Body: { tableId: string; reservationId?: string; clientId?: string; clientName?: string; course: string; dishStatus: string; seatedAt?: string; lastEventAt?: string };
-  }>("/tables/:id/service", async (req, reply) => {
+  }>("/tables/:id/service", { preHandler: requirePermission("service.suivre") }, async (req, reply) => {
     const { course, dishStatus } = req.body;
     if (!["aucun", "entree", "plat", "dessert"].includes(course)) {
       return reply.status(400).send({ error: "Étape de repas invalide" });
@@ -76,17 +88,19 @@ export async function tablesRoutes(app: FastifyInstance) {
     return tableServices[req.params.id];
   });
 
-  app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/open", async (req) => {
+  app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/open", { preHandler: requirePermission("service.suivre") }, async (req) => {
     tableStatuts[req.params.id] = "occupee";
     return { tableId: req.params.id, status: "occupee", openedAt: req.body.occurredAt };
   });
 
-  app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/bill", async (req) => {
+  app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/bill", { preHandler: requirePermission("service.addition") }, async (req) => {
     tableStatuts[req.params.id] = "a_nettoyer";
+    journalAdditions.push({ tableId: req.params.id, restaurantId: restaurantDe(req), at: new Date().toISOString() });
+    journaliser(req, "service.addition", { cible: { type: "table", id: req.params.id } });
     return { tableId: req.params.id, status: "a_nettoyer", billedAt: req.body.occurredAt };
   });
 
-  app.put<{ Params: { id: string }; Body: { tableId: string; menuItemId: string; quantite: number; orderedAt: string } }>("/tables/:id/dish-order", async (req) => ({
+  app.put<{ Params: { id: string }; Body: { tableId: string; menuItemId: string; quantite: number; orderedAt: string } }>("/tables/:id/dish-order", { preHandler: requirePermission("service.commander") }, async (req) => ({
     tableId: req.params.id,
     menuItemId: req.body.menuItemId,
     quantite: req.body.quantite,
@@ -94,14 +108,14 @@ export async function tablesRoutes(app: FastifyInstance) {
     orderedAt: req.body.orderedAt,
   }));
 
-  app.put<{ Params: { id: string }; Body: { tableId: string; lineId: string; reclameAt: string } }>("/tables/:id/dish-request", async (req) => ({
+  app.put<{ Params: { id: string }; Body: { tableId: string; lineId: string; reclameAt: string } }>("/tables/:id/dish-request", { preHandler: requirePermission("service.commander") }, async (req) => ({
     tableId: req.params.id,
     lineId: req.body.lineId,
     status: "a_reclamer",
     reclameAt: req.body.reclameAt,
   }));
 
-  app.put<{ Params: { id: string }; Body: { tableId: string; lineId: string; readyAt: string } }>("/tables/:id/dish-ready", async (req) => ({
+  app.put<{ Params: { id: string }; Body: { tableId: string; lineId: string; readyAt: string } }>("/tables/:id/dish-ready", { preHandler: requirePermission("cuisine.plat_pret") }, async (req) => ({
     tableId: req.params.id,
     lineId: req.body.lineId,
     status: "pret",

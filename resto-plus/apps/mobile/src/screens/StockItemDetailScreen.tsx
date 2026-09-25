@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import type { StockMovementType } from "@resto-plus/types";
 import { useStockStore } from "../store/stockStore";
+import { useMenuStore } from "../store/menuStore";
 
 const TYPES: { id: StockMovementType; label: string; signe: string }[] = [
   { id: "reception", label: "Réception", signe: "+" },
@@ -18,11 +19,17 @@ const TYPE_LABEL: Record<StockMovementType, string> = {
   ajustement: "Ajustement",
 };
 
-export function StockItemDetailScreen({ itemId, canAdjust }: { itemId: string; canAdjust: boolean }) {
+export function StockItemDetailScreen({ itemId, canEntree, canSortie, onDeleted }: { itemId: string; canEntree: boolean; canSortie: boolean; onDeleted: () => void }) {
   const item = useStockStore((state) => state.items.find((candidate) => candidate.id === itemId));
   const historique = useStockStore((state) => state.movementsByItem[itemId] ?? []);
   const loadHistorique = useStockStore((state) => state.loadHistorique);
   const enregistrerMouvement = useStockStore((state) => state.enregistrerMouvement);
+  const supprimerArticle = useStockStore((state) => state.supprimerArticle);
+  const plats = useMenuStore((state) => state.items);
+  const loadMenu = useMenuStore((state) => state.loadMenu);
+  // N1 : réception uniquement. Toute baisse engage le chef de cuisine (N2).
+  const typesAutorises = TYPES.filter((candidate) => (candidate.id === "reception" ? canEntree : canSortie));
+  const [erreur, setErreur] = useState("");
 
   const [type, setType] = useState<StockMovementType>("reception");
   const [quantite, setQuantite] = useState("");
@@ -30,7 +37,8 @@ export function StockItemDetailScreen({ itemId, canAdjust }: { itemId: string; c
 
   useEffect(() => {
     loadHistorique(itemId);
-  }, [itemId, loadHistorique]);
+    if (canSortie) loadMenu();
+  }, [itemId, loadHistorique, loadMenu, canSortie]);
 
   if (!item) {
     return (
@@ -39,6 +47,24 @@ export function StockItemDetailScreen({ itemId, canAdjust }: { itemId: string; c
       </View>
     );
   }
+
+  const arrondi = (valeur: number) => Math.round(valeur * 1000) / 1000;
+  const quantiteValidee = item.quantiteConfirmee ?? item.quantiteActuelle;
+  const sortiesEnAttente = arrondi(quantiteValidee - item.quantiteActuelle);
+  const platUtilisateur = plats.find((plat) => plat.ingredients.some((ingredient) => ingredient.stockItemId === itemId));
+  // Mêmes règles que l'API (DELETE /stock-items/:id), expliquées avant même d'essayer.
+  const raisonBlocage =
+    sortiesEnAttente !== 0 || historique.some((mouvement) => mouvement.statut === "provisoire")
+      ? "Impossible de retirer cet article : des sorties attendent la validation du compte rendu cuisine. Valide ou annule-les d'abord."
+      : platUtilisateur
+        ? `Impossible de retirer cet article : il est utilisé dans le plat « ${platUtilisateur.nom} ». Retire-le d'abord de la carte.`
+        : null;
+
+  const supprimer = async () => {
+    const message = await supprimerArticle(itemId);
+    if (message) setErreur(message);
+    else onDeleted();
+  };
 
   const soumettre = () => {
     const valeur = Number(quantite.replace(",", "."));
@@ -55,12 +81,29 @@ export function StockItemDetailScreen({ itemId, canAdjust }: { itemId: string; c
       <Text style={styles.quantite}>
         {item.quantiteActuelle} {item.unite} <Text style={styles.seuil}>· seuil {item.seuilAlerte} {item.unite}</Text>
       </Text>
+      {sortiesEnAttente !== 0 && (
+        // Détail posé noir sur blanc : pas de calcul à faire de tête en plein service.
+        <View style={styles.bilan}>
+          <View style={styles.bilanRow}>
+            <Text style={styles.bilanLabel}>Stock validé (comptable)</Text>
+            <Text style={styles.bilanValue}>{quantiteValidee} {item.unite}</Text>
+          </View>
+          <View style={styles.bilanRow}>
+            <Text style={styles.bilanLabel}>Sorties en attente du compte rendu</Text>
+            <Text style={[styles.bilanValue, styles.bilanAttente]}>{sortiesEnAttente > 0 ? "−" : "+"} {Math.abs(sortiesEnAttente)} {item.unite}</Text>
+          </View>
+          <View style={[styles.bilanRow, styles.bilanTotal]}>
+            <Text style={styles.bilanLabelTotal}>Reste en frigo / réserve</Text>
+            <Text style={styles.bilanValueTotal}>{item.quantiteActuelle} {item.unite}</Text>
+          </View>
+        </View>
+      )}
 
-      {canAdjust && (
+      {typesAutorises.length > 0 && (
         <View style={styles.form}>
           <Text style={styles.label}>Type de mouvement</Text>
           <View style={styles.typeRow}>
-            {TYPES.map((candidate) => (
+            {typesAutorises.map((candidate) => (
               <Pressable
                 key={candidate.id}
                 onPress={() => setType(candidate.id)}
@@ -82,6 +125,9 @@ export function StockItemDetailScreen({ itemId, canAdjust }: { itemId: string; c
           <Pressable style={styles.saveButton} onPress={soumettre}>
             <Text style={styles.saveLabel}>Enregistrer le mouvement</Text>
           </Pressable>
+          {type !== "reception" && (
+            <Text style={styles.note}>Cette baisse restera provisoire jusqu'à la validation du compte rendu cuisine.</Text>
+          )}
         </View>
       )}
 
@@ -93,7 +139,11 @@ export function StockItemDetailScreen({ itemId, canAdjust }: { itemId: string; c
           {historique.map((mouvement) => (
             <View key={mouvement.id} style={styles.historiqueRow}>
               <View style={styles.historiqueHeader}>
-                <Text style={styles.historiqueType}>{TYPE_LABEL[mouvement.type]}</Text>
+                <Text style={styles.historiqueType}>
+                  {TYPE_LABEL[mouvement.type]}
+                  {mouvement.statut === "provisoire" && <Text style={styles.badgeAttente}>  · en attente de validation</Text>}
+                  {mouvement.statut === "annule" && <Text style={styles.badgeAnnule}>  · annulé par le chef</Text>}
+                </Text>
                 <Text style={styles.historiqueDate}>{new Date(mouvement.timestamp).toLocaleString("fr-FR")}</Text>
               </View>
               <Text style={styles.historiqueDetail}>
@@ -105,6 +155,15 @@ export function StockItemDetailScreen({ itemId, canAdjust }: { itemId: string; c
             </View>
           ))}
         </View>
+      )}
+
+      {canSortie && (
+        <>
+          <Pressable style={[styles.deleteButton, !!raisonBlocage && styles.deleteButtonDisabled]} onPress={supprimer} disabled={!!raisonBlocage}>
+            <Text style={styles.deleteLabel}>Retirer cet article du stock</Text>
+          </Pressable>
+          {!!(raisonBlocage || erreur) && <Text style={styles.error}>{raisonBlocage ?? erreur}</Text>}
+        </>
       )}
     </ScrollView>
   );
@@ -119,6 +178,21 @@ const styles = StyleSheet.create({
   title: { color: colors.navy, fontFamily: typography.serif, fontSize: 25, marginBottom: spacing.xs },
   quantite: { color: colors.navy, fontSize: 16, marginBottom: spacing.lg },
   seuil: { color: colors.textMuted, fontSize: 12 },
+  bilan: { backgroundColor: colors.creamLight, borderWidth: 1, borderColor: colors.creamBorder, borderRadius: radii.card, padding: spacing.md, marginTop: -spacing.sm, marginBottom: spacing.lg },
+  bilanRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
+  bilanLabel: { color: colors.textMuted, fontSize: 12 },
+  bilanValue: { color: colors.navy, fontSize: 12 },
+  bilanAttente: { color: colors.statusOccupied },
+  bilanTotal: { borderTopWidth: 1, borderTopColor: colors.creamBorder, marginTop: 4, paddingTop: 6 },
+  bilanLabelTotal: { color: colors.navy, fontSize: 13, fontWeight: "600" },
+  bilanValueTotal: { color: colors.navy, fontSize: 15, fontWeight: "700" },
+  deleteButtonDisabled: { opacity: 0.4 },
+  note: { color: colors.textMuted, fontSize: 10, marginTop: spacing.sm, fontStyle: "italic" },
+  badgeAttente: { color: colors.statusOccupied, fontSize: 10, fontWeight: "400" },
+  badgeAnnule: { color: colors.textMuted, fontSize: 10, fontWeight: "400" },
+  deleteButton: { alignItems: "center", paddingVertical: spacing.md, marginTop: spacing.xl, borderWidth: 1, borderColor: colors.statusReserved, borderRadius: radii.card },
+  deleteLabel: { color: colors.statusReserved, fontSize: 12, fontWeight: "600" },
+  error: { color: colors.statusReserved, fontSize: 11, marginTop: spacing.sm },
   form: { borderTopWidth: 1, borderTopColor: colors.creamBorder, paddingTop: spacing.lg, marginBottom: spacing.xl },
   label: { color: colors.textMuted, fontSize: 10, marginTop: spacing.md, marginBottom: 5 },
   input: { borderWidth: 1, borderColor: colors.creamBorder, borderRadius: radii.card, backgroundColor: colors.creamLight, color: colors.navy, paddingHorizontal: spacing.md, paddingVertical: 11 },

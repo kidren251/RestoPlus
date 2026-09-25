@@ -99,3 +99,28 @@ QR. Un manager authentifié génère une invitation serveur à usage unique avec
 L'intérimaire scanne le QR dans Restau Plus et la redemption publique est limitée au token
 opaque de l'invitation. La génération reste protégée par le restaurant du manager ; le QR
 ne contient aucune donnée client ni clé d'accès permanente.
+
+## Sécurité : règles à respecter pour toute nouvelle fonctionnalité
+
+1. **Supabase ne sert qu'à l'authentification côté mobile.** L'app ne contient jamais la
+   clé `service_role` (seule la clé publique `anon`, le jour où elle sera nécessaire) et
+   ne lit ni n'écrit aucune table directement : toutes les données passent par l'API.
+2. **RLS activée sur toutes les tables, sans exception** (migration 0013). Aucune
+   écriture directe n'est permise ; la lecture directe est limitée aux données
+   opérationnelles du restaurant du membre ; les données sensibles (clients,
+   réservations, messagerie, comptes rendus, délégations, commandes, audit) ne sont
+   lisibles que par l'API. Une vue doit être créée avec `security_invoker = true`.
+3. **L'API utilise `service_role`, qui ignore la RLS : l'isolation entre restaurants se
+   joue donc dans Fastify.** Toute route qui lit un objet par son id passe par
+   `appartient()` (`backend/api/src/tenant.ts`) et répond 404 si l'objet appartient à un
+   autre restaurant ; toute liste passe par `duRestaurant()` ; le restaurant d'un objet
+   créé vient toujours de la session, jamais du corps de la requête.
+4. **Les droits (niveau N0-N3, pôle) viennent de la matrice partagée**
+   `packages/types/src/permissions.ts`, appliquée par `requirePermission()`.
+5. **Test obligatoire après toute nouvelle route** : `yarn workspace @resto-plus/api test:isolation`
+   (le restaurant B tente chaque action sur les données du restaurant A).
+
+⚠️ **Mode démo** (`REQUIRE_AUTH=false`) : les en-têtes `X-Demo-User-*` et
+`X-Demo-Restaurant-Id` sont falsifiables et la console plateforme N4 est ouverte. Ces
+abaissements sont signalés par de gros commentaires dans `tenant.ts`, `demoIdentity.ts`
+et `routes/platform.ts`, et disparaissent dès que l'authentification est exigée.

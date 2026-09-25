@@ -1,15 +1,17 @@
 import type { FastifyInstance } from "fastify";
+import { requirePermission } from "../permissions";
 import type { MenuItem, MenuItemIngredient } from "@resto-plus/types";
 import { applyStockMovement, items as stockItems } from "./stock";
+import { journalCommandes } from "./tableState";
+import { journaliser } from "../audit";
 import "../auth";
-
-const DEMO_RESTAURANT_ID = "demo-restaurant";
+import { appartient, restaurantDe, DEMO_RESTAURANT_ID } from "../tenant";
 
 // Données mockées — Phase 1. Premier menu réel utilisé comme exemple (9 recettes).
 // Lien plat ↔ ingrédients : base de la décrémentation automatique du stock à la
 // commande et, avec prixVente ici + prixAchat sur chaque StockItem lié, de
 // l'équation prix/marge.
-const items: MenuItem[] = [
+export const items: MenuItem[] = [
   {
     id: "veloute-potimarron-chataigne",
     restaurantId: DEMO_RESTAURANT_ID,
@@ -131,30 +133,29 @@ const items: MenuItem[] = [
   },
 ];
 
-function hasWriteAccess(role: string | undefined): boolean {
-  return !role || role !== "serveur";
-}
-
 export async function menuRoutes(app: FastifyInstance) {
   // GET /menu-items
   app.get("/menu-items", async (req) => {
-    const restaurantId = req.auth?.restaurantId ?? DEMO_RESTAURANT_ID;
+    const restaurantId = restaurantDe(req);
     return items.filter((item) => item.restaurantId === restaurantId);
   });
 
   // POST /menu-items — crée un plat et son lien vers les ingrédients de stock
   app.post<{ Body: { nom: string; categorie?: string; prixVente: number; ingredients: MenuItemIngredient[] } }>(
-    "/menu-items",
+    "/menu-items", { preHandler: requirePermission("carte.gerer") },
     async (req, reply) => {
-      if (!hasWriteAccess(req.auth?.accessRole)) {
-        return reply.status(403).send({ error: "ACCESS_LEVEL_INSUFFICIENT" });
-      }
       if (!req.body.nom?.trim()) {
         return reply.status(400).send({ error: "Le nom est obligatoire" });
       }
+      // Un plat ne peut être relié qu'aux ingrédients du stock de son propre restaurant.
+      const restaurantId = restaurantDe(req);
+      const etranger = (req.body.ingredients ?? []).find(
+        (ingredient) => stockItems.find((stockItem) => stockItem.id === ingredient.stockItemId)?.restaurantId !== restaurantId
+      );
+      if (etranger) return reply.status(400).send({ error: `Ingrédient introuvable (${etranger.stockItemId})` });
       const item: MenuItem = {
         id: `menu_${Date.now()}`,
-        restaurantId: req.auth?.restaurantId ?? DEMO_RESTAURANT_ID,
+        restaurantId: restaurantDe(req),
         nom: req.body.nom.trim(),
         categorie: req.body.categorie,
         prixVente: req.body.prixVente,
@@ -168,10 +169,10 @@ export async function menuRoutes(app: FastifyInstance) {
   // POST /menu-items/:id/order — un serveur commande ce plat : décrémente chaque
   // ingrédient lié dans le stock et remonte les alertes de seuil déclenchées.
   app.post<{ Params: { id: string }; Body: { tableId: string; quantite: number } }>(
-    "/menu-items/:id/order",
+    "/menu-items/:id/order", { preHandler: requirePermission("service.commander") },
     async (req, reply) => {
       const item = items.find((candidate) => candidate.id === req.params.id);
-      if (!item) return reply.status(404).send({ error: "Plat introuvable" });
+      if (!item || !appartient(item, req)) return reply.status(404).send({ error: "Plat introuvable" });
 
       const quantite = req.body.quantite ?? 1;
       if (!Number.isFinite(quantite) || quantite <= 0) {
@@ -182,7 +183,8 @@ export async function menuRoutes(app: FastifyInstance) {
       // évite un stock partiellement décrémenté si un ingrédient venait à manquer en cours de route.
       for (const ingredient of item.ingredients) {
         const stockItem = stockItems.find((candidate) => candidate.id === ingredient.stockItemId);
-        if (!stockItem) return reply.status(404).send({ error: `Ingrédient introuvable (${ingredient.stockItemId})` });
+        // Un plat ne décrémente que le stock de son propre restaurant.
+        if (!stockItem || stockItem.restaurantId !== item.restaurantId) return reply.status(404).send({ error: `Ingrédient introuvable (${ingredient.stockItemId})` });
         if (stockItem.quantiteActuelle < ingredient.quantite * quantite) {
           return reply.status(400).send({ error: `Stock insuffisant : ${stockItem.nom}` });
         }
@@ -205,6 +207,16 @@ export async function menuRoutes(app: FastifyInstance) {
         if (result.alert) alerts.push(result.alert);
       }
 
+      journalCommandes.push({ menuItemId: item.id, nom: item.nom, prixVente: item.prixVente, quantite, tableId: req.body.tableId, restaurantId: item.restaurantId ?? restaurantDe(req), at: new Date().toISOString() });
+      journaliser(req, "commande.plat", {
+        cible: { type: "plat", id: item.id, libelle: item.nom },
+        details: {
+          table: req.body.tableId,
+          quantite,
+          prixVente: item.prixVente,
+          sortiesStock: movements.map((movement) => movement.id).join(","),
+        },
+      });
       return reply.status(201).send({ menuItemId: item.id, tableId: req.body.tableId, quantite, movements, alerts });
     }
   );

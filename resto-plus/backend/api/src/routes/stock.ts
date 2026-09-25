@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import { checkPermission, requirePermission } from "../permissions";
 import type { StockAlert, StockItem, StockMovement, StockMovementType, UniteStock } from "@resto-plus/types";
+import { items as menuItems } from "./menu";
+import { journaliser } from "../audit";
 import "../auth";
-
-const DEMO_RESTAURANT_ID = "demo-restaurant";
+import { appartient, duRestaurant, restaurantDe, DEMO_RESTAURANT_ID } from "../tenant";
 
 // Données mockées — Phase 1 (en mémoire, non branché sur Postgres/Supabase).
 // Ingrédients du premier menu réel utilisé comme exemple (9 recettes, voir menu.ts).
@@ -42,13 +44,18 @@ export const items: StockItem[] = [
   { id: "gelatine-sucre-pannacotta", restaurantId: DEMO_RESTAURANT_ID, nom: "Gélatine & sucre (panna cotta)", categorie: "Épicerie", unite: "unite", quantiteActuelle: 5, seuilAlerte: 1, prixAchat: 0.4, updatedAt: new Date().toISOString() },
 ];
 
-const movements: StockMovement[] = [];
+// Au démarrage, tout le stock mock est considéré comme confirmé (comptable).
+for (const item of items) item.quantiteConfirmee = item.quantiteActuelle;
+
+export const movements: StockMovement[] = [];
 const alerts: StockAlert[] = [];
 
-function hasWriteAccess(role: string | undefined): boolean {
-  // N0 (serveur) consulte uniquement ; N1+ (chef_rang, manager_admin, directeur_admin) ajuste le stock.
-  // Hors authentification (dev/mock), accessRole est undefined : on laisse passer.
-  return !role || role !== "serveur";
+/**
+ * Une réception est confirmée immédiatement (le cuisinier charge son stock seul) ;
+ * toute baisse reste provisoire jusqu'à la validation du compte rendu cuisine.
+ */
+function statutInitial(type: StockMovementType, delta: number): StockMovement["statut"] {
+  return type === "reception" || delta >= 0 ? "confirme" : "provisoire";
 }
 
 /**
@@ -74,7 +81,10 @@ export function applyStockMovement(
 
   if (quantiteApres < 0) return { error: "Quantité insuffisante en stock", status: 400 };
 
+  const delta = quantiteApres - quantiteAvant;
+  const statut = statutInitial(type, delta);
   item.quantiteActuelle = quantiteApres;
+  if (statut === "confirme") item.quantiteConfirmee = (item.quantiteConfirmee ?? quantiteAvant) + delta;
   item.updatedAt = new Date().toISOString();
 
   const movement: StockMovement = {
@@ -84,6 +94,8 @@ export function applyStockMovement(
     type,
     quantite,
     quantiteApres,
+    delta,
+    statut,
     motif,
     userId: actorId,
     timestamp: item.updatedAt,
@@ -112,69 +124,125 @@ export function applyStockMovement(
   return { item, movement, alert };
 }
 
+/** Confirme un mouvement provisoire : il entre dans le stock comptable. */
+export function confirmerMouvement(movement: StockMovement) {
+  if (movement.statut !== "provisoire") return;
+  const item = items.find((candidate) => candidate.id === movement.stockItemId);
+  if (item) item.quantiteConfirmee = (item.quantiteConfirmee ?? 0) + (movement.delta ?? 0);
+  movement.statut = "confirme";
+}
+
 export async function stockRoutes(app: FastifyInstance) {
   // GET /stock-items
   app.get("/stock-items", async (req) => {
-    const restaurantId = req.auth?.restaurantId ?? DEMO_RESTAURANT_ID;
+    const restaurantId = restaurantDe(req);
     return items.filter((item) => item.restaurantId === restaurantId);
   });
 
   // POST /stock-items — crée un nouvel article
   app.post<{ Body: { nom: string; categorie?: string; unite: UniteStock; seuilAlerte?: number; prixAchat?: number } }>(
-    "/stock-items",
+    "/stock-items", { preHandler: requirePermission("stock.entree") },
     async (req, reply) => {
-      if (!hasWriteAccess(req.auth?.accessRole)) {
-        return reply.status(403).send({ error: "ACCESS_LEVEL_INSUFFICIENT" });
-      }
       if (!req.body.nom?.trim()) {
         return reply.status(400).send({ error: "Le nom est obligatoire" });
       }
       const item: StockItem = {
         id: `stk_${Date.now()}`,
-        restaurantId: req.auth?.restaurantId ?? DEMO_RESTAURANT_ID,
+        restaurantId: restaurantDe(req),
         nom: req.body.nom.trim(),
         categorie: req.body.categorie,
         unite: req.body.unite,
         quantiteActuelle: 0,
+        quantiteConfirmee: 0,
         seuilAlerte: req.body.seuilAlerte ?? 0,
         prixAchat: req.body.prixAchat,
         updatedAt: new Date().toISOString(),
       };
       items.push(item);
+      journaliser(req, "stock.article_cree", {
+        cible: { type: "article", id: item.id, libelle: item.nom },
+        apres: { unite: item.unite, seuilAlerte: item.seuilAlerte, prixAchat: item.prixAchat ?? null },
+      });
       return reply.status(201).send(item);
     }
   );
 
   // POST /stock-items/:id/movements — enregistre un mouvement (réception, sortie, perte, ajustement)
+  // Réception : N1+ ; toute baisse : N2 (chef de cuisine), et reste provisoire jusqu'au compte rendu.
   app.post<{ Params: { id: string }; Body: { type: StockMovementType; quantite: number; motif?: string } }>(
     "/stock-items/:id/movements",
     async (req, reply) => {
-      if (!hasWriteAccess(req.auth?.accessRole)) {
-        return reply.status(403).send({ error: "ACCESS_LEVEL_INSUFFICIENT" });
-      }
+      if (!checkPermission(req, reply, req.body.type === "reception" ? "stock.entree" : "stock.sortie")) return;
+      if (!appartient(items.find((item) => item.id === req.params.id), req)) return reply.status(404).send({ error: "Article introuvable" });
       const result = applyStockMovement(req.params.id, req.body.type, req.body.quantite, req.body.motif, req.auth?.userId);
       if ("error" in result) return reply.status(result.status).send({ error: result.error });
+      const { movement } = result;
+      journaliser(req, "stock.mouvement", {
+        cible: { type: "article", id: result.item.id, libelle: result.item.nom },
+        avant: movement.quantiteApres - (movement.delta ?? 0),
+        apres: movement.quantiteApres,
+        details: { mouvementId: movement.id, type: movement.type, quantite: movement.quantite, statut: movement.statut ?? null, motif: movement.motif ?? null },
+      });
       return reply.status(201).send(result.movement);
     }
   );
 
+  // DELETE /stock-items/:id — retirer un article du stock (N2)
+  app.delete<{ Params: { id: string } }>("/stock-items/:id", { preHandler: requirePermission("stock.sortie") }, async (req, reply) => {
+    const index = items.findIndex((item) => item.id === req.params.id);
+    if (index === -1 || !appartient(items[index], req)) return reply.status(404).send({ error: "Article introuvable" });
+    if (movements.some((movement) => movement.stockItemId === req.params.id && movement.statut === "provisoire")) {
+      return reply.status(409).send({ error: "Des sorties de cet article attendent la validation du compte rendu cuisine." });
+    }
+    const plat = menuItems.find((menuItem) => menuItem.ingredients.some((ingredient) => ingredient.stockItemId === req.params.id));
+    if (plat) {
+      return reply.status(409).send({ error: `Article utilisé dans le plat « ${plat.nom} » : retire-le de la carte d'abord.` });
+    }
+    const [retire] = items.splice(index, 1);
+    journaliser(req, "stock.article_supprime", {
+      cible: { type: "article", id: retire.id, libelle: retire.nom },
+      avant: { quantite: retire.quantiteActuelle, quantiteValidee: retire.quantiteConfirmee ?? null, unite: retire.unite },
+    });
+    return { id: req.params.id, deleted: true };
+  });
+
+  // POST /stock-movements/:id/annuler — le chef de cuisine conteste une sortie provisoire
+  app.post<{ Params: { id: string } }>("/stock-movements/:id/annuler", { preHandler: requirePermission("stock.sortie") }, async (req, reply) => {
+    const movement = movements.find((candidate) => candidate.id === req.params.id);
+    if (!movement || !appartient(movement, req)) return reply.status(404).send({ error: "Mouvement introuvable" });
+    if (movement.statut !== "provisoire") return reply.status(409).send({ error: "Seul un mouvement en attente de validation peut être annulé." });
+    const item = items.find((candidate) => candidate.id === movement.stockItemId);
+    if (item) {
+      item.quantiteActuelle = Math.max(0, item.quantiteActuelle - (movement.delta ?? 0));
+      item.updatedAt = new Date().toISOString();
+    }
+    movement.statut = "annule";
+    journaliser(req, "stock.mouvement_annule", {
+      cible: { type: "article", id: movement.stockItemId, libelle: item?.nom },
+      avant: "provisoire",
+      apres: "annule",
+      details: { mouvementId: movement.id, type: movement.type, quantite: movement.quantite, stockRetabli: item?.quantiteActuelle ?? null },
+    });
+    return movement;
+  });
+
   // GET /stock-items/:id/movements — historique d'un article
   app.get<{ Params: { id: string } }>("/stock-items/:id/movements", async (req) => {
-    return movements
+    return duRestaurant(movements, req)
       .filter((movement) => movement.stockItemId === req.params.id)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   });
 
   // GET /stock-alerts — alertes de seuil pour le chef de cuisine / la direction (N2+)
   app.get("/stock-alerts", async (req) => {
-    const restaurantId = req.auth?.restaurantId ?? DEMO_RESTAURANT_ID;
+    const restaurantId = restaurantDe(req);
     return alerts.filter((alert) => alert.restaurantId === restaurantId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   });
 
   // POST /stock-alerts/:id/read — marque une alerte comme lue
   app.post<{ Params: { id: string } }>("/stock-alerts/:id/read", async (req, reply) => {
     const alert = alerts.find((candidate) => candidate.id === req.params.id);
-    if (!alert) return reply.status(404).send({ error: "Alerte introuvable" });
+    if (!alert || !appartient(alert, req)) return reply.status(404).send({ error: "Alerte introuvable" });
     alert.read = true;
     return alert;
   });

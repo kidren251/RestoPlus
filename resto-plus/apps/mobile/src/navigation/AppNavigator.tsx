@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
@@ -14,15 +14,25 @@ import { EspaceEquipeScreen } from "../screens/EspaceEquipeScreen";
 import { CommandesCuisineScreen } from "../screens/CommandesCuisineScreen";
 import { StockScreen } from "../screens/StockScreen";
 import { StockItemDetailScreen } from "../screens/StockItemDetailScreen";
+import { MenuScreen } from "../screens/MenuScreen";
+import { MessagerieScreen } from "../screens/MessagerieScreen";
+import { ConversationScreen } from "../screens/ConversationScreen";
 import { InviterEquipierScreen } from "../screens/InviterEquipierScreen";
 import { ScannerInvitationScreen } from "../screens/ScannerInvitationScreen";
 import { LoginScreen } from "../screens/LoginScreen";
 import { GestionAccesScreen } from "../screens/GestionAccesScreen";
 import { DevCreatorPanelScreen } from "../screens/DevCreatorPanelScreen";
+import { ActivationCompteScreen } from "../screens/ActivationCompteScreen";
+import { CompteRenduScreen, ComptesRendusRecusScreen } from "../screens/CompteRenduScreen";
+import { ComptesEquipeScreen } from "../screens/ComptesEquipeScreen";
+import { DelegationsScreen } from "../screens/DelegationsScreen";
+import { JournalAuditScreen } from "../screens/JournalAuditScreen";
+import { api } from "../api/client";
 import PlanDeSalle from "../components/PlanDeSalle";
 import { useSalleStore } from "../store/salleStore";
 import { useChecklistStore } from "../store/checklistStore";
-import type { AccessRole, Pole, PlatformRole } from "@resto-plus/types";
+import { isServiceLocked, useSessionStore } from "../store/sessionStore";
+import { can, type AccessRole, type Delegation, type DroitsSession, type IdentiteConnexion, type Permission, type Pole, type PlatformRole, type PoleService } from "@resto-plus/types";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -38,10 +48,20 @@ export type RootStackParamList = {
   CommandesCuisine: undefined;
   Stock: undefined;
   StockItem: { itemId: string };
+  Menu: undefined;
+  Messagerie: undefined;
+  Conversation: { conversationId: string; titre: string };
   InviterEquipier: undefined;
   ScannerInvitation: undefined;
   GestionAcces: undefined;
   DevCreator: undefined;
+  ActivationCompte: undefined;
+  EspaceDirection: undefined;
+  CompteRendu: { pole: PoleService };
+  ComptesRendusRecus: undefined;
+  ComptesEquipe: undefined;
+  Delegations: undefined;
+  JournalAudit: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -133,6 +153,13 @@ const headerStyles = StyleSheet.create({
   },
 });
 
+const lockStyles = StyleSheet.create({
+  bar: { backgroundColor: colors.navy, paddingVertical: 8, paddingHorizontal: spacing.md, alignItems: "center" },
+  barUnlocked: { backgroundColor: colors.gold },
+  label: { color: colors.gold, fontSize: 11, fontWeight: "600" },
+  labelUnlocked: { color: colors.navy },
+});
+
 function RestrictedMessage({ text }: { text: string }) {
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, backgroundColor: colors.cream }}>
@@ -141,37 +168,51 @@ function RestrictedMessage({ text }: { text: string }) {
   );
 }
 
-function PlanSalleWithToggle({ onBack, onOpenClient, onOpenConfigurator }: { onBack: () => void; onOpenClient: (tableId: string) => void; onOpenConfigurator: () => void }) {
-  const [role, setRole] = useState<AccessRole>("manager_admin");
-  const [layoutLocked, setLayoutLocked] = useState(false);
-  const isAdmin = role === "manager_admin" || role === "directeur_admin";
-  const roleLabel = role === "directeur_admin" ? "N3" : role === "manager_admin" ? "N2" : role === "chef_rang" ? "N1" : "N0";
-  const nextRole: Record<AccessRole, AccessRole> = {
-    serveur: "chef_rang",
-    chef_rang: "manager_admin",
-    manager_admin: "directeur_admin",
-    directeur_admin: "serveur",
-  };
+const ROLE_LEVEL_LABEL: Record<AccessRole, string> = {
+  serveur: "N0",
+  chef_rang: "N1",
+  manager_admin: "N2",
+  directeur_admin: "N3",
+};
+
+// Le niveau affiché est celui du compte connecté : il n'est jamais modifiable depuis
+// l'écran (seule la gestion des accès, côté N2+, attribue un niveau).
+function PlanSalle({ role, allows, onBack, onOpenClient, onOpenConfigurator }: { role: AccessRole; allows: (permission: Permission) => boolean; onBack: () => void; onOpenClient: (tableId: string) => void; onOpenConfigurator: () => void }) {
+  const isDirector = role === "directeur_admin";
+  // Directeur : plan et service verrouillés par défaut, pour qu'un clic depuis le
+  // bureau ne déplace pas une table ni ne touche au service en cours.
+  const [layoutLocked, setLayoutLocked] = useState(isDirector);
+  const serviceUnlocked = useSessionStore((state) => state.serviceUnlocked);
+  const setServiceUnlocked = useSessionStore((state) => state.setServiceUnlocked);
+  useEffect(() => {
+    setServiceUnlocked(false);
+  }, [setServiceUnlocked]);
+  const isAdmin = allows("salle.configurer");
+  const serviceOpen = !isDirector || serviceUnlocked;
 
   return (
     <View style={{ flex: 1 }}>
       <CustomHeader
         title={isAdmin ? "Plan de salle — Édition" : `Plan de salle — ${role === "chef_rang" ? "Chef de rang" : "Serveur"}`}
         onBack={onBack}
-        rightAction={
-          <Pressable
-            onPress={() => setRole((current) => nextRole[current])}
-            hitSlop={16}
-            style={headerStyles.actionButton}
-          >
-            <Text style={headerStyles.adminToggle}>{roleLabel}</Text>
-          </Pressable>
-        }
+        rightAction={<Text style={headerStyles.adminToggle}>{ROLE_LEVEL_LABEL[role]}</Text>}
       />
+      {isDirector && (
+        <Pressable
+          style={[lockStyles.bar, serviceUnlocked && lockStyles.barUnlocked]}
+          onPress={() => setServiceUnlocked(!serviceUnlocked)}
+          accessibilityRole="button"
+        >
+          <Text style={[lockStyles.label, serviceUnlocked && lockStyles.labelUnlocked]}>
+            {serviceUnlocked ? "🔓 Service déverrouillé · toucher pour reverrouiller" : "🔒 Service verrouillé · consultation seule · toucher pour déverrouiller"}
+          </Text>
+        </Pressable>
+      )}
       <PlanDeSalle
         isAdmin={isAdmin}
         layoutLocked={layoutLocked}
-        role={role}
+        canEditService={serviceOpen && allows("service.suivre")}
+        canRequestDish={serviceOpen && allows("service.commander")}
         onToggleLayoutLock={() => setLayoutLocked((locked) => !locked)}
         onOpenConfigurator={onOpenConfigurator}
         onTablePress={(tableId) => {
@@ -199,6 +240,41 @@ export function AppNavigator() {
   );
   const { loadSalle } = useSalleStore();
   const { getNombreEnAttente } = useChecklistStore();
+  // Droits de l'utilisateur courant : même matrice que l'API (packages/types/src/permissions.ts).
+  const allows = (permission: Permission) => can({ accessRole: currentAccessRole, pole: currentPole }, permission);
+  const currentUser = useSessionStore((state) => state.currentUser);
+  const serviceUnlocked = useSessionStore((state) => state.serviceUnlocked);
+  const serviceLocked = isServiceLocked(currentUser, serviceUnlocked);
+  // Console N4 : il n'existe pas encore de compte N4 de démo, on la réserve au N3
+  // en plus du flag d'environnement (qui, seul, l'ouvrait à tous les comptes).
+  const canOpenCreatorPanel = platformRole === "dev_creator" && currentAccessRole === "directeur_admin";
+
+  // Délégation reçue du N3 : relève temporairement le niveau (N1 → droits du N2).
+  const [delegation, setDelegation] = useState<Delegation | undefined>();
+
+  /** Droits effectifs vus par l'API. Hors ligne, on garde les derniers connus. */
+  const rafraichirDroits = async () => {
+    try {
+      const droits = await api.get<DroitsSession>("/session/droits");
+      setCurrentAccessRole(droits.accessRole);
+      setDelegation(droits.delegation);
+    } catch {
+      // hors ligne
+    }
+  };
+
+  const connecter = (identity: IdentiteConnexion) => {
+    setCurrentAccessRole(identity.accessRole);
+    setCurrentPole(identity.pole);
+    setDelegation(undefined);
+    useSessionStore.getState().setCurrentUser({ id: identity.id, nom: identity.nom, accessRole: identity.accessRole, pole: identity.pole });
+    setAuthenticated(true);
+    void rafraichirDroits();
+  };
+
+  const bandeauDelegation = delegation
+    ? `Délégation active : tu assures les tâches du ${delegation.pole === "cuisine" ? "chef de cuisine" : "manager de salle"} jusqu’au ${new Date(delegation.fin).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}.`
+    : undefined;
 
   if (!authenticated) {
     return (
@@ -207,16 +283,33 @@ export function AppNavigator() {
           <Stack.Screen name="Login">
             {({ navigation }) => (
               <LoginScreen
-                onLogin={(account) => { setCurrentAccessRole(account.accessRole); setCurrentPole(account.pole); setAuthenticated(true); }}
+                onLogin={connecter}
                 onTemporaryAccess={() => navigation.navigate("ScannerInvitation")}
+                onActivateAccount={() => navigation.navigate("ActivationCompte")}
               />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="ActivationCompte">
+            {({ navigation }) => (
+              <View style={{ flex: 1 }}>
+                <CustomHeader title="Première connexion" onBack={() => navigation.goBack()} />
+                <ActivationCompteScreen onActivated={connecter} />
+              </View>
             )}
           </Stack.Screen>
           <Stack.Screen name="ScannerInvitation">
             {({ navigation }) => (
               <View style={{ flex: 1 }}>
                 <CustomHeader title="Rejoindre un restaurant" onBack={() => navigation.goBack()} />
-                <ScannerInvitationScreen onBack={() => navigation.goBack()} onAccessGranted={(pole) => { setCurrentAccessRole("serveur"); setCurrentPole(pole); setAuthenticated(true); }} />
+                <ScannerInvitationScreen
+                  onBack={() => navigation.goBack()}
+                  onAccessGranted={(pole, displayName) => {
+                    setCurrentAccessRole("serveur");
+                    setCurrentPole(pole);
+                    useSessionStore.getState().setCurrentUser({ id: `invite-${Date.now()}`, nom: displayName || "Intérimaire", accessRole: "serveur", pole });
+                    setAuthenticated(true);
+                  }}
+                />
               </View>
             )}
           </Stack.Screen>
@@ -230,7 +323,7 @@ export function AppNavigator() {
       <Stack.Navigator
         screenOptions={{ headerShown: false, animation: "slide_from_right" }}
       >
-        <Stack.Screen name="Accueil">
+        <Stack.Screen name="Accueil" listeners={{ focus: () => void rafraichirDroits() }}>
           {({ navigation }) => (
             <AccueilScreen
               prenomUtilisateur="Chef"
@@ -238,7 +331,7 @@ export function AppNavigator() {
               pole={currentPole}
               espaceActif="operationnel"
               onChangerEspace={() => {}}
-              onOpenCreatorPanel={platformRole === "dev_creator" ? () => navigation.navigate("DevCreator") : undefined}
+              onOpenCreatorPanel={canOpenCreatorPanel ? () => navigation.navigate("DevCreator") : undefined}
               onNaviguer={(dest) => {
                 if (dest === "plan_salle") {
                   loadSalle();
@@ -253,10 +346,15 @@ export function AppNavigator() {
                   navigation.navigate("EspaceCuisine");
                 } else if (dest === "espace_salle") {
                   navigation.navigate("EspaceSalle");
+                } else if (dest === "espace_direction") {
+                  navigation.navigate("EspaceDirection");
+                } else if (dest === "messagerie") {
+                  navigation.navigate("Messagerie");
                 } else if (dest === "scanner_invitation") {
                   navigation.navigate("ScannerInvitation");
                 }
               }}
+              bandeau={bandeauDelegation}
               checklistsEnAttente={getNombreEnAttente()}
               arriveesVip={0}
             />
@@ -265,7 +363,9 @@ export function AppNavigator() {
 
         <Stack.Screen name="PlanSalle">
           {({ navigation }) => (
-            <PlanSalleWithToggle
+            <PlanSalle
+              role={currentAccessRole}
+              allows={allows}
               onBack={() => navigation.goBack()}
               onOpenClient={(tableId) => {
                 navigation.navigate("ClientEdition", { tableId });
@@ -282,6 +382,9 @@ export function AppNavigator() {
               <ClientEditionScreen
                 tableId={route.params.tableId}
                 onBack={() => navigation.goBack()}
+                canEditClient={!serviceLocked && allows("client.editer")}
+                canOrder={!serviceLocked && allows("service.commander")}
+                serviceLocked={serviceLocked}
               />
             </View>
           )}
@@ -291,7 +394,11 @@ export function AppNavigator() {
           {({ navigation }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Configurateur de salle" onBack={() => navigation.goBack()} />
-              <ConfigurateurSalleScreen onBack={() => navigation.goBack()} />
+              {allows("salle.configurer") ? (
+                <ConfigurateurSalleScreen onBack={() => navigation.goBack()} />
+              ) : (
+                <RestrictedMessage text="Configuration de la salle réservée aux niveaux N2 et N3." />
+              )}
             </View>
           )}
         </Stack.Screen>
@@ -303,10 +410,13 @@ export function AppNavigator() {
               {currentPole === "cuisine" || currentPole === "direction" ? (
                 <EspaceEquipeScreen
                   espace="cuisine"
+                  canValidateReport={allows("compte_rendu.cuisine")}
                   onNavigate={(destination) => {
                     if (destination === "checklists") navigation.navigate("Checklist");
                     if (destination === "commandes_cuisine") navigation.navigate("CommandesCuisine");
                     if (destination === "gestion_stocks") navigation.navigate("Stock");
+                    if (destination === "gestion_carte") navigation.navigate("Menu");
+                    if (destination === "compte_rendu") navigation.navigate("CompteRendu", { pole: "cuisine" });
                   }}
                 />
               ) : (
@@ -323,9 +433,10 @@ export function AppNavigator() {
               {currentPole === "salle" || currentPole === "direction" ? (
                 <EspaceEquipeScreen
                   espace="salle"
-                  canManageAccess={currentAccessRole === "manager_admin" || currentAccessRole === "directeur_admin"}
-                  canManageLayout={currentAccessRole === "manager_admin" || currentAccessRole === "directeur_admin"}
-                  canManageInvitations={currentAccessRole === "directeur_admin"}
+                  canManageAccess={allows("acces.gerer")}
+                  canManageLayout={allows("salle.configurer")}
+                  canManageInvitations={allows("invitation.creer")}
+                  canValidateReport={allows("compte_rendu.salle")}
                   onNavigate={(destination) => {
                     if (destination === "plan_salle") {
                       loadSalle();
@@ -336,11 +447,84 @@ export function AppNavigator() {
                     if (destination === "inviter_equipier") navigation.navigate("InviterEquipier");
                     if (destination === "gestion_acces") navigation.navigate("GestionAcces");
                     if (destination === "configurateur_salle") navigation.navigate("ConfigurateurSalle");
+                    if (destination === "compte_rendu") navigation.navigate("CompteRendu", { pole: "salle" });
                   }}
                 />
               ) : (
                 <RestrictedMessage text="Cet espace est réservé au pôle salle." />
               )}
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="EspaceDirection">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Espace direction" onBack={() => navigation.goBack()} />
+              {currentPole === "direction" ? (
+                <EspaceEquipeScreen
+                  espace="direction"
+                  canManageAccess={allows("acces.gerer")}
+                  onNavigate={(destination) => {
+                    if (destination === "comptes_rendus_recus") navigation.navigate("ComptesRendusRecus");
+                    if (destination === "comptes_equipe") navigation.navigate("ComptesEquipe");
+                    if (destination === "delegations") navigation.navigate("Delegations");
+                    if (destination === "journal_audit") navigation.navigate("JournalAudit");
+                    if (destination === "gestion_acces") navigation.navigate("GestionAcces");
+                  }}
+                />
+              ) : (
+                <RestrictedMessage text="Cet espace est réservé à la direction." />
+              )}
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="CompteRendu">
+          {({ navigation, route }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Compte rendu du service" onBack={() => navigation.goBack()} />
+              {allows(route.params.pole === "cuisine" ? "compte_rendu.cuisine" : "compte_rendu.salle") ? (
+                <CompteRenduScreen pole={route.params.pole} />
+              ) : (
+                <RestrictedMessage text="Compte rendu réservé au responsable du pôle (N2)." />
+              )}
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="ComptesRendusRecus">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Comptes rendus reçus" onBack={() => navigation.goBack()} />
+              {allows("compte_rendu.consulter") ? <ComptesRendusRecusScreen /> : <RestrictedMessage text="Accès réservé à la direction." />}
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="ComptesEquipe">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Comptes de l’équipe" onBack={() => navigation.goBack()} />
+              {allows("comptes.gerer") ? <ComptesEquipeScreen /> : <RestrictedMessage text="Création de comptes réservée au directeur (N3)." />}
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Delegations">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Délégation des tâches" onBack={() => navigation.goBack()} />
+              {allows("delegations.gerer") ? <DelegationsScreen /> : <RestrictedMessage text="Délégations réservées au directeur (N3)." />}
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="JournalAudit">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Journal d’audit" onBack={() => navigation.goBack()} />
+              {allows("audit.consulter") ? <JournalAuditScreen /> : <RestrictedMessage text="Journal réservé au directeur (N3)." />}
             </View>
           )}
         </Stack.Screen>
@@ -359,7 +543,7 @@ export function AppNavigator() {
             <View style={{ flex: 1 }}>
               <CustomHeader title="Gestion des stocks" onBack={() => navigation.goBack()} />
               <StockScreen
-                canAdjust={currentAccessRole !== "serveur"}
+                canCreate={allows("stock.entree")}
                 onOpenItem={(itemId) => navigation.navigate("StockItem", { itemId })}
               />
             </View>
@@ -370,7 +554,39 @@ export function AppNavigator() {
           {({ navigation, route }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Article en stock" onBack={() => navigation.goBack()} />
-              <StockItemDetailScreen itemId={route.params.itemId} canAdjust={currentAccessRole !== "serveur"} />
+              <StockItemDetailScreen
+                itemId={route.params.itemId}
+                canEntree={allows("stock.entree")}
+                canSortie={allows("stock.sortie")}
+                onDeleted={() => navigation.goBack()}
+              />
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Menu">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Gestion de la carte" onBack={() => navigation.goBack()} />
+              <MenuScreen canManage={allows("carte.gerer")} />
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Messagerie">
+          {({ navigation }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title="Messagerie" onBack={() => navigation.goBack()} />
+              <MessagerieScreen onOpenConversation={(conversationId, titre) => navigation.navigate("Conversation", { conversationId, titre })} />
+            </View>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Conversation">
+          {({ navigation, route }) => (
+            <View style={{ flex: 1 }}>
+              <CustomHeader title={route.params.titre} onBack={() => navigation.goBack()} />
+              <ConversationScreen conversationId={route.params.conversationId} />
             </View>
           )}
         </Stack.Screen>
@@ -379,10 +595,14 @@ export function AppNavigator() {
           {({ navigation }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Inviter un équipier" onBack={() => navigation.goBack()} />
-              <InviterEquipierScreen
-                onBack={() => navigation.goBack()}
-                onOpenScanner={() => navigation.navigate("ScannerInvitation")}
-              />
+              {allows("invitation.creer") ? (
+                <InviterEquipierScreen
+                  onBack={() => navigation.goBack()}
+                  onOpenScanner={() => navigation.navigate("ScannerInvitation")}
+                />
+              ) : (
+                <RestrictedMessage text="Invitations réservées au directeur d’établissement (N3)." />
+              )}
             </View>
           )}
         </Stack.Screen>
@@ -400,10 +620,15 @@ export function AppNavigator() {
           {({ navigation }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Gestion des accès" onBack={() => navigation.goBack()} />
-              <GestionAccesScreen
-                onBack={() => navigation.goBack()}
-                onInvite={() => navigation.navigate("InviterEquipier")}
-              />
+              {allows("acces.gerer") ? (
+                <GestionAccesScreen
+                  onBack={() => navigation.goBack()}
+                  onInvite={allows("invitation.creer") ? () => navigation.navigate("InviterEquipier") : undefined}
+                  canChangePole={allows("acces.changer_pole")}
+                />
+              ) : (
+                <RestrictedMessage text="Gestion des accès réservée aux niveaux N2 et N3." />
+              )}
             </View>
           )}
         </Stack.Screen>
@@ -412,7 +637,7 @@ export function AppNavigator() {
           {({ navigation }) => (
             <View style={{ flex: 1 }}>
               <CustomHeader title="Console créateur" onBack={() => navigation.goBack()} />
-              {platformRole === "dev_creator" ? (
+              {canOpenCreatorPanel ? (
                 <DevCreatorPanelScreen onBack={() => navigation.goBack()} />
               ) : (
                 <RestrictedMessage text="Accès réservé au niveau N4." />
@@ -440,7 +665,7 @@ export function AppNavigator() {
                 title="Réservations du soir"
                 onBack={() => navigation.goBack()}
               />
-              <ReservationsScreen />
+              <ReservationsScreen canEdit={allows("reservation.gerer")} />
             </View>
           )}
         </Stack.Screen>
@@ -452,7 +677,7 @@ export function AppNavigator() {
                 title="Tâches de salle"
                 onBack={() => navigation.goBack()}
               />
-              <TachesSalleScreen />
+              <TachesSalleScreen canReset={allows("taches.reinitialiser")} />
             </View>
           )}
         </Stack.Screen>

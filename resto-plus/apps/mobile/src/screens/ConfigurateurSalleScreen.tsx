@@ -80,7 +80,7 @@ export function ConfigurateurSalleScreen({ onBack }: { onBack: () => void }) {
         <View key={table.id} style={styles.tableRow}>
           <View style={styles.tableInfo}>
             <Text style={styles.tableName}>{table.nom ?? table.id}</Text>
-            <Text style={styles.tableMeta}>{table.capacite} personnes · {table.forme} · ({table.x}, {table.y})</Text>
+            <Text style={styles.tableMeta}>{table.capacite} personnes · {table.forme}</Text>
           </View>
           <Pressable onPress={() => removeTable(table.id)} style={styles.deleteButton}>
             <Text style={styles.deleteLabel}>Supprimer</Text>

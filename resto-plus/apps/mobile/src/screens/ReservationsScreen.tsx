@@ -77,7 +77,7 @@ const ALLERGENE_COLORS: Record<string, string> = {
   "fruits de mer": "#A8DAD0",
 };
 
-export function ReservationsScreen() {
+export function ReservationsScreen({ canEdit }: { canEdit: boolean }) {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -156,9 +156,11 @@ export function ReservationsScreen() {
             <Text style={styles.title}>Réservations du soir</Text>
             <Text style={styles.subtitle}>{reservations.length} réservations · {vipCount} attention requise</Text>
           </View>
-          <Pressable style={styles.addButton} onPress={() => setShowForm(true)}>
-            <Text style={styles.addButtonLabel}>+</Text>
-          </Pressable>
+          {canEdit && (
+            <Pressable style={styles.addButton} onPress={() => setShowForm(true)}>
+              <Text style={styles.addButtonLabel}>+</Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -172,7 +174,7 @@ export function ReservationsScreen() {
           onPress={() =>
             setSelectedId(selectedId === res.id ? null : res.id)
           }
-          onCancel={() => annulerReservation(res.id)}
+          onCancel={canEdit ? () => annulerReservation(res.id) : undefined}
         />
       ))}
 
@@ -204,7 +206,7 @@ function ReservationCard({
   reservation: Reservation;
   expanded: boolean;
   onPress: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }) {
   const hasAllergenes = reservation.allergenes.length > 0;
   const isVip = reservation.notes?.toLowerCase().includes("vip");
@@ -281,9 +283,11 @@ function ReservationCard({
               ))}
             </View>
           )}
-          <Pressable onPress={onCancel} style={styles.cancelButton}>
-            <Text style={styles.cancelLabel}>Annuler cette réservation</Text>
-          </Pressable>
+          {onCancel && (
+            <Pressable onPress={onCancel} style={styles.cancelButton}>
+              <Text style={styles.cancelLabel}>Annuler cette réservation</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </Pressable>
