@@ -1,11 +1,12 @@
 import type { FastifyRequest } from "fastify";
-import type { AccessRole, PlatformRole } from "@resto-plus/types";
+import type { AccessRole, PlatformRole, Pole } from "@resto-plus/types";
 import { supabase } from "./supabase";
 
 export interface AuthContext {
   userId: string;
   restaurantId?: string;
   accessRole?: AccessRole;
+  pole?: Pole;
   platformRole: PlatformRole;
 }
 
@@ -63,7 +64,7 @@ export async function authenticateRequest(request: FastifyRequest): Promise<Auth
 
   const { data: membership, error: membershipError } = await supabase
     .from("restaurant_members")
-    .select("restaurant_id, access_role, actif")
+    .select("restaurant_id, access_role, pole, actif")
     .eq("user_id", userData.user.id)
     .eq("actif", true)
     .maybeSingle();
@@ -76,6 +77,7 @@ export async function authenticateRequest(request: FastifyRequest): Promise<Auth
     userId: userData.user.id,
     restaurantId: membership.restaurant_id,
     accessRole: membership.access_role as AccessRole,
+    pole: membership.pole as Pole,
     platformRole,
   };
 }

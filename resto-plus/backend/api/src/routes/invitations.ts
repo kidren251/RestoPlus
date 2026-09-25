@@ -1,7 +1,10 @@
 import { randomBytes, createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
+import { requirePermission } from "../permissions";
 import type { Pole } from "@resto-plus/types";
+import { journaliser } from "../audit";
 import "../auth";
+import { restaurantDe } from "../tenant";
 
 type Invitation = {
   id: string;
@@ -24,27 +27,32 @@ type RestaurantMember = {
   expiresAt: string;
 };
 
-const DEMO_RESTAURANT_ID = "demo-restaurant";
 const invitations: Invitation[] = [];
 const restaurantMembers: RestaurantMember[] = [];
 
+/** Intérimaires dont l'accès temporaire court encore — compté à part pour la facturation. */
+export function countInterimairesActifs(restaurantId: string): number {
+  const now = new Date();
+  return restaurantMembers.filter(
+    (member) => member.restaurantId === restaurantId && member.status === "temporaire" && new Date(member.expiresAt) > now
+  ).length;
+}
+
 export async function invitationsRoutes(app: FastifyInstance) {
-  app.post<{ Body: { durationHours?: number; pole?: Pole } }>("/invitations", async (req, reply) => {
-    if (req.auth?.accessRole && req.auth.accessRole !== "directeur_admin") {
-      return reply.status(403).send({ error: "DIRECTOR_ADMIN_REQUIRED" });
-    }
+  app.post<{ Body: { durationHours?: number; pole?: Pole } }>("/invitations", { preHandler: requirePermission("invitation.creer") }, async (req, reply) => {
     const pole: Pole = req.body.pole === "cuisine" ? "cuisine" : "salle";
     const durationHours = Math.min(Math.max(req.body.durationHours ?? 48, 1), 168);
     const token = randomBytes(32).toString("hex");
     const invitation: Invitation = {
       id: `inv-${Date.now()}`,
-      restaurantId: req.auth?.restaurantId ?? DEMO_RESTAURANT_ID,
+      restaurantId: restaurantDe(req),
       role: "serveur",
       pole,
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString(),
     };
     invitations.push(invitation);
+    journaliser(req, "invitation.creee", { cible: { type: "invitation", id: invitation.id }, details: { pole, expireLe: invitation.expiresAt } });
     return reply.status(201).send({
       id: invitation.id,
       restaurantId: invitation.restaurantId,
@@ -56,8 +64,8 @@ export async function invitationsRoutes(app: FastifyInstance) {
     });
   });
 
-  app.get("/restaurant/members", async (req) => {
-    const restaurantId = req.auth?.restaurantId ?? DEMO_RESTAURANT_ID;
+  app.get("/restaurant/members", { preHandler: requirePermission("acces.gerer") }, async (req) => {
+    const restaurantId = restaurantDe(req);
     return {
       members: restaurantMembers.filter((member) => member.restaurantId === restaurantId),
     };
@@ -72,6 +80,12 @@ export async function invitationsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Le nom est obligatoire" });
     }
     invitation.usedAt = new Date().toISOString();
+    journaliser(req, "invitation.utilisee", {
+      restaurantId: invitation.restaurantId,
+      acteur: { id: `interimaire:${invitation.id}`, nom: req.body.displayName.trim(), accessRole: "serveur", pole: invitation.pole },
+      cible: { type: "invitation", id: invitation.id },
+      details: { accesJusquAu: invitation.expiresAt },
+    });
     restaurantMembers.push({
       id: `member-${Date.now()}`,
       restaurantId: invitation.restaurantId,

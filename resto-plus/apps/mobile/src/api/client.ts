@@ -23,6 +23,24 @@ export function setApiAccessToken(token: string | null) {
   accessToken = token;
 }
 
+/**
+ * Identité de démo transmise en en-têtes tant que Supabase Auth n'est pas branché.
+ * Sert uniquement à la messagerie (savoir qui parle, à qui il a le droit d'écrire) —
+ * ce n'est PAS un mécanisme de sécurité : à retirer dès qu'une vraie session
+ * Supabase (Bearer token, voir setApiAccessToken) porte cette identité côté API.
+ */
+interface DemoIdentity {
+  id: string;
+  nom: string;
+  accessRole: string;
+  pole: string;
+}
+let demoIdentity: DemoIdentity | null = null;
+
+export function setDemoIdentity(identity: DemoIdentity | null) {
+  demoIdentity = identity;
+}
+
 async function apiFetch<T>(
   path: string,
   options?: RequestInit
@@ -37,6 +55,14 @@ async function apiFetch<T>(
       headers: {
         "Content-Type": "application/json",
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(demoIdentity
+          ? {
+              "X-Demo-User-Id": demoIdentity.id,
+              "X-Demo-User-Nom": encodeURIComponent(demoIdentity.nom),
+              "X-Demo-User-AccessRole": demoIdentity.accessRole,
+              "X-Demo-User-Pole": demoIdentity.pole,
+            }
+          : {}),
         ...options?.headers,
       },
     });
@@ -68,3 +94,16 @@ export const api = {
 };
 
 export { ApiError };
+
+/** Message à afficher à l'utilisateur : le champ `error` renvoyé par l'API, sinon un repli. */
+export function messageErreur(error: unknown, repli = "Connexion au serveur impossible. Réessaie une fois en ligne."): string {
+  if (!(error instanceof ApiError)) return repli;
+  try {
+    const body = JSON.parse(error.message) as { error?: string };
+    if (body.error && body.error !== "ACCESS_LEVEL_INSUFFICIENT") return body.error;
+    if (body.error === "ACCESS_LEVEL_INSUFFICIENT") return "Ton niveau d'accès ne permet pas cette action.";
+  } catch {
+    // corps non JSON : on garde le repli
+  }
+  return repli;
+}

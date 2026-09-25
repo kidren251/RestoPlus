@@ -12,6 +12,8 @@ interface AccueilScreenProps {
   onChangerEspace: (espace: "operationnel" | "academie") => void;
   onNaviguer: (destination: string) => void;
   onOpenCreatorPanel?: () => void;
+  /** Message important en tête d'accueil (ex. délégation active). */
+  bandeau?: string;
   checklistsEnAttente: number;
   arriveesVip: number;
 }
@@ -21,7 +23,8 @@ const ACCES_RAPIDES = [
   { id: "checklists", label: "Checklists HACCP", numero: "02", pole: "cuisine" },
   { id: "fiches_vip", label: "Réservations du soir", numero: "03", pole: "salle" },
   { id: "taches_salle", label: "Tâches équipe de salle", numero: "04", pole: "salle" },
-  { id: "scanner_invitation", label: "Rejoindre un restaurant", numero: "05", pole: null },
+  { id: "messagerie", label: "Messagerie", numero: "05", pole: null },
+  { id: "scanner_invitation", label: "Rejoindre un restaurant", numero: "06", pole: null },
 ] as const;
 
 export function AccueilScreen({
@@ -32,6 +35,7 @@ export function AccueilScreen({
   onChangerEspace,
   onNaviguer,
   onOpenCreatorPanel,
+  bandeau,
   checklistsEnAttente,
   arriveesVip,
 }: AccueilScreenProps) {
@@ -53,6 +57,12 @@ export function AccueilScreen({
           <Text style={styles.offlineText}>
             Hors ligne{pendingCount > 0 ? ` · ${pendingCount} action${pendingCount > 1 ? "s" : ""} en attente` : ""}
           </Text>
+        </View>
+      )}
+
+      {bandeau && (
+        <View style={styles.bandeau}>
+          <Text style={styles.bandeauText}>{bandeau}</Text>
         </View>
       )}
 
@@ -114,6 +124,12 @@ export function AccueilScreen({
             <Text style={styles.rowChevron}>›</Text>
           </Pressable>
         )}
+        {pole === "direction" && (
+          <Pressable onPress={() => onNaviguer("espace_direction")} style={({ pressed }) => [styles.teamRow, pressed && styles.rowPressed]}>
+            <Text style={styles.teamLabel}>Espace direction</Text>
+            <Text style={styles.rowChevron}>›</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Pied de page : prenom utilisateur */}
@@ -125,6 +141,8 @@ export function AccueilScreen({
 }
 
 const styles = StyleSheet.create({
+  bandeau: { backgroundColor: colors.navy, borderRadius: radii.card, padding: spacing.md, marginBottom: spacing.md },
+  bandeauText: { color: colors.gold, fontSize: 12, lineHeight: 17, textAlign: "center" },
   container: {
     flex: 1,
     backgroundColor: colors.cream,

@@ -13,10 +13,10 @@ function statutArticle(item: StockItem): { label: string; color: string } {
 }
 
 export function StockScreen({
-  canAdjust,
+  canCreate,
   onOpenItem,
 }: {
-  canAdjust: boolean;
+  canCreate: boolean;
   onOpenItem: (itemId: string) => void;
 }) {
   const items = useStockStore((state) => state.items);
@@ -94,7 +94,7 @@ export function StockScreen({
         })}
       </View>
 
-      {canAdjust && (
+      {canCreate && (
         <>
           {showForm ? (
             <View style={styles.form}>

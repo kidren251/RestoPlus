@@ -21,13 +21,15 @@ export type SyncActionType =
   | "table_bill_sent"
   | "client_upsert"
   | "dish_order"
+  | "menu_order"
   | "dish_request"
   | "dish_ready"
   | "reservation_create"
   | "reservation_cancel"
   | "message_send"
   | "stock_movement"
-  | "stock_item_create";
+  | "stock_item_create"
+  | "menu_item_create";
 
 export interface QueuedAction<T = unknown> {
   id: string;
@@ -55,6 +57,13 @@ export interface SyncEngineOptions {
   maxAttempts?: number;
   /** Appelé quand le pendingCount change (pour mise à jour du store UI). */
   onPendingCountChange?: (count: number) => void;
+  /**
+   * Erreur définitive (ex. droits insuffisants, données invalides) : réessayer ne
+   * changera rien, l'action est retirée de la file au lieu d'y rester bloquée.
+   */
+  isPermanentError?: (error: unknown) => boolean;
+  /** Appelé pour chaque action retirée sur erreur définitive. */
+  onRejected?: (action: QueuedAction, error: unknown) => void;
 }
 
 const STORAGE_KEY = "sync_engine_queue_v1";
@@ -132,7 +141,13 @@ export class SyncEngine {
       try {
         await this.options.send(action);
         action.status = "synced";
-      } catch {
+      } catch (error) {
+        if (this.options.isPermanentError?.(error)) {
+          // Même traitement qu'une action aboutie : elle quitte la file.
+          action.status = "synced";
+          this.options.onRejected?.(action, error);
+          continue;
+        }
         action.attempts += 1;
         action.status = "failed";
       }

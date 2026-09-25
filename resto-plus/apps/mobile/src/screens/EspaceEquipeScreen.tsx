@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 
-type EspaceEquipe = "cuisine" | "salle";
+type EspaceEquipe = "cuisine" | "salle" | "direction";
 
 const ESPACES = {
   cuisine: {
@@ -13,6 +13,8 @@ const ESPACES = {
       { id: "checklists", label: "Checklists HACCP", detail: "Ouverture, fermeture et contrôles 4h" },
       { id: "commandes_cuisine", label: "Suivi des plats", detail: "Plats en attente, en préparation et prêts" },
       { id: "gestion_stocks", label: "Gestion des stocks", detail: "Ingrédients, quantités et alertes de seuil" },
+      { id: "gestion_carte", label: "Gestion de la carte", detail: "Plats, ingrédients liés et marge estimée" },
+      { id: "compte_rendu", label: "Compte rendu du service", detail: "Vérifier les sorties de stock et valider en fin de journée" },
     ],
   },
   salle: {
@@ -26,18 +28,43 @@ const ESPACES = {
       { id: "inviter_equipier", label: "Invitations équipiers", detail: "Générer un QR code serveur temporaire" },
       { id: "gestion_acces", label: "Gestion des accès", detail: "Membres, rôles et accès temporaires" },
       { id: "configurateur_salle", label: "Configurer la salle", detail: "Plan, tables et dimensions de l’établissement" },
+      { id: "compte_rendu", label: "Compte rendu du service", detail: "Vérifier et valider le service en fin de journée" },
+    ],
+  },
+  direction: {
+    eyebrow: "ESPACE DIRECTION",
+    title: "Piloter l’établissement",
+    subtitle: "Comptes rendus de service, équipe et accès.",
+    actions: [
+      { id: "comptes_rendus_recus", label: "Comptes rendus reçus", detail: "Salle et cuisine, validés par les responsables" },
+      { id: "comptes_equipe", label: "Comptes de l’équipe", detail: "Créer des comptes N0 à N2, régler l’accès à la messagerie" },
+      { id: "delegations", label: "Délégation des tâches", detail: "Confier les responsabilités d’un N2 absent à un N1" },
+      { id: "journal_audit", label: "Journal d’audit", detail: "Qui a fait quoi, quand : traçabilité infalsifiable" },
+      { id: "gestion_acces", label: "Gestion des accès", detail: "Membres, pôles et accès temporaires" },
     ],
   },
 } as const;
 
-export function EspaceEquipeScreen({ espace, onNavigate, canManageAccess = false, canManageLayout = false, canManageInvitations = false }: { espace: EspaceEquipe; onNavigate: (destination: string) => void; canManageAccess?: boolean; canManageLayout?: boolean; canManageInvitations?: boolean }) {
+const ADMIN_MARKS: Record<string, string> = {
+  inviter_equipier: "＋",
+  gestion_acces: "⌘",
+  configurateur_salle: "▦",
+  compte_rendu: "✎",
+  comptes_rendus_recus: "✉",
+  comptes_equipe: "◎",
+  delegations: "⇄",
+  journal_audit: "⌕",
+};
+
+export function EspaceEquipeScreen({ espace, onNavigate, canManageAccess = false, canManageLayout = false, canManageInvitations = false, canValidateReport = false }: { espace: EspaceEquipe; onNavigate: (destination: string) => void; canManageAccess?: boolean; canManageLayout?: boolean; canManageInvitations?: boolean; canValidateReport?: boolean }) {
   const content = ESPACES[espace];
   const actions = content.actions.filter((action) =>
     (action.id !== "gestion_acces" || canManageAccess) &&
     (action.id !== "configurateur_salle" || canManageLayout) &&
-    (action.id !== "inviter_equipier" || canManageInvitations)
+    (action.id !== "inviter_equipier" || canManageInvitations) &&
+    (action.id !== "compte_rendu" || canValidateReport)
   );
-  const adminActionIds = ["inviter_equipier", "gestion_acces", "configurateur_salle"];
+  const adminActionIds = Object.keys(ADMIN_MARKS);
   const operationalActions = actions.filter((action) => !adminActionIds.includes(action.id));
   const adminActions = actions.filter((action) => adminActionIds.includes(action.id));
   return (
@@ -45,7 +72,7 @@ export function EspaceEquipeScreen({ espace, onNavigate, canManageAccess = false
       <Text style={styles.eyebrow}>{content.eyebrow}</Text>
       <Text style={styles.title}>{content.title}</Text>
       <Text style={styles.subtitle}>{content.subtitle}</Text>
-      <Text style={styles.sectionLabel}>OPÉRATIONS</Text>
+      {operationalActions.length > 0 && <Text style={styles.sectionLabel}>OPÉRATIONS</Text>}
       <View style={styles.actionGroup}>
         {operationalActions.map((action, index) => (
           <Pressable key={action.id} onPress={() => onNavigate(action.id)} style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
@@ -63,9 +90,9 @@ export function EspaceEquipeScreen({ espace, onNavigate, canManageAccess = false
         <>
           <Text style={[styles.sectionLabel, styles.adminSectionLabel]}>ADMINISTRATION</Text>
           <View style={[styles.actionGroup, styles.adminGroup]}>
-            {adminActions.map((action, index) => (
+            {adminActions.map((action) => (
               <Pressable key={action.id} onPress={() => onNavigate(action.id)} style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
-                <Text style={styles.adminMark}>{index === 0 ? "＋" : index === 1 ? "⌘" : "▦"}</Text>
+                <Text style={styles.adminMark}>{ADMIN_MARKS[action.id]}</Text>
                 <View style={styles.actionCopy}>
                   <Text style={styles.actionLabel}>{action.label}</Text>
                   <Text style={styles.actionDetail}>{action.detail}</Text>

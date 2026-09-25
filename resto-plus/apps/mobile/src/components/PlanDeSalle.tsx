@@ -21,7 +21,7 @@ import {
   Dimensions,
   LayoutChangeEvent,
 } from "react-native";
-import type { AccessRole, Table, TableServiceState, StatutTable } from "@resto-plus/types";
+import type { Table, TableServiceState, StatutTable } from "@resto-plus/types";
 import { useSalleStore, StatutPlat } from "../store/salleStore";
 
 // ---- Charte "Digital Luxury" ----
@@ -36,7 +36,6 @@ const COLORS = {
   decor: "#D9D2C2",
 };
 
-const STATUT_CYCLE: StatutTable[] = ["libre", "occupee", "reservee", "a_nettoyer"];
 const PANEL_WIDTH = Math.min(300, Dimensions.get("window").width * 0.8);
 
 function couleurStatut(statut: StatutTable): string {
@@ -84,17 +83,19 @@ function labelDishStatus(status: TableServiceState["dishStatus"]): string {
 interface PlanDeSalleProps {
   isAdmin?: boolean;
   layoutLocked?: boolean;
-  role?: AccessRole;
+  /** Étape du repas / état du plat (droit "service.suivre", hors verrou de service). */
+  canEditService?: boolean;
+  /** Réclamer un plat (droit "service.commander", hors verrou de service). */
+  canRequestDish?: boolean;
   onToggleLayoutLock?: () => void;
   onOpenConfigurator?: () => void;
   onTablePress?: (tableId: string) => void;
   onClientPress?: (tableId: string) => void;
 }
 
-export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, role = "serveur", onToggleLayoutLock, onOpenConfigurator, onTablePress, onClientPress }: PlanDeSalleProps) {
+export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, canEditService = false, canRequestDish = false, onToggleLayoutLock, onOpenConfigurator, onTablePress, onClientPress }: PlanDeSalleProps) {
   const salle = useSalleStore((s) => s.salle);
   const moveTable = useSalleStore((s) => s.moveTable);
-  const setStatutTable = useSalleStore((s) => s.setStatutTable);
   const selectTable = useSalleStore((s) => s.selectTable);
   const selectedTableId = useSalleStore((s) => s.selectedTableId);
   const serviceStates = useSalleStore((s) => s.serviceStates);
@@ -132,13 +133,7 @@ export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, rol
   const handleTablePress = (table: Table) => {
     selectTable(table.id);
     onTablePress?.(table.id);
-    if (isAdmin || role === "manager_admin" || role === "chef_rang" || role === "serveur") {
-      setPanelTableId(table.id);
-    } else {
-      const idx = STATUT_CYCLE.indexOf(table.statut);
-      const next = STATUT_CYCLE[(idx + 1) % STATUT_CYCLE.length];
-      setStatutTable(table.id, next);
-    }
+    setPanelTableId(table.id);
   };
 
   const panelTable = panelTableId ? salle.tables.find((t) => t.id === panelTableId) : undefined;
@@ -218,8 +213,9 @@ export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, rol
       <TableEditPanel
         table={panelTable}
         serviceState={panelTable ? serviceStates[panelTable.id] : undefined}
-          canEditService={isAdmin || role === "manager_admin" || role === "directeur_admin" || role === "chef_rang"}
-          canEditLayout={isAdmin || role === "manager_admin" || role === "directeur_admin"}
+        canEditService={canEditService}
+        canEditLayout={isAdmin}
+        canRequestDish={canRequestDish}
         onClientPress={onClientPress}
         visible={!!panelTable}
         onClose={() => setPanelTableId(null)}
@@ -404,12 +400,13 @@ interface TableEditPanelProps {
   serviceState?: TableServiceState;
   canEditService: boolean;
   canEditLayout: boolean;
+  canRequestDish: boolean;
   onClientPress?: (tableId: string) => void;
   visible: boolean;
   onClose: () => void;
 }
 
-function TableEditPanel({ table, serviceState, canEditService, canEditLayout, onClientPress, visible, onClose }: TableEditPanelProps) {
+function TableEditPanel({ table, serviceState, canEditService, canEditLayout, canRequestDish, onClientPress, visible, onClose }: TableEditPanelProps) {
   const updateTableInfo = useSalleStore((s) => s.updateTableInfo);
   const updateTableService = useSalleStore((s) => s.updateTableService);
   const getCommande = useSalleStore((s) => s.getCommande);
@@ -590,7 +587,7 @@ function TableEditPanel({ table, serviceState, canEditService, canEditLayout, on
                   <Text style={styles.ligneHoraire}>
                     Servi : {formatHeure(ligne.serviAt)}
                   </Text>
-                  {(ligne.statut === "en_preparation" || ligne.statut === "en_attente") && (
+                  {canRequestDish && (ligne.statut === "en_preparation" || ligne.statut === "en_attente") && (
                     <Pressable style={styles.requestButton} onPress={() => requestDish(table.id, ligne.id)}>
                       <Text style={styles.requestButtonLabel}>Réclamer ce plat</Text>
                     </Pressable>
