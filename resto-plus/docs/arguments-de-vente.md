@@ -124,6 +124,16 @@ quand.
 *« Vos clients vous confient leurs allergies pour un repas. Resto Plus les donne à
 votre équipe le temps du service, puis les oublie. »*
 
+**Astuces**
+- *Objection attendue : « Mes habitués vont devoir redonner leurs allergies à chaque
+  fois ? »* — Oui, et c'est voulu : **un client fidèle redonne ses allergies à chaque
+  visite**. C'est aussi la bonne pratique de sécurité alimentaire, car une allergie
+  peut évoluer : une information notée il y a deux ans peut être fausse ce soir.
+  Demander à chaque repas protège le client… et le restaurant.
+- Présenter la question comme une attention de service (« Avez-vous des allergies
+  ce soir ? ») plutôt que comme une contrainte : c'est déjà le réflexe des maisons
+  sérieuses.
+
 > À n'utiliser commercialement qu'après validation juridique des durées et des bases
 > légales (voir `docs/rgpd.md`, « À faire valider »).
 
