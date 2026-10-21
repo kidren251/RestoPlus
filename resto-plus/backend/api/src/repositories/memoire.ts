@@ -1,4 +1,5 @@
-import type { Client, Reservation, ReglagesDroits, Salle, TableServiceState } from "@resto-plus/types";
+import type { Checklist, Client, Reservation, ReglagesDroits, Salle, TableServiceState } from "@resto-plus/types";
+import type { Releve } from "./haccp";
 import { jourDeService } from "@resto-plus/types";
 import { DEMO_RESTAURANT_ID } from "../tenant";
 
@@ -13,7 +14,45 @@ export interface EtatMemoire {
   services: Record<string, TableServiceState>;
   reservations: (Reservation & { restaurantId: string; date: string })[];
   clients: (Client & { restaurantId: string })[];
+  checklists: (Checklist & { restaurantId: string })[];
+  releves: Releve[];
 }
+
+/** Plan HACCP de démo (même contenu que scripts/seed-demo.mjs). */
+export const CHECKLISTS_DEMO: Checklist[] = [
+  {
+    id: "cl-ouverture",
+    type: "Ouverture cuisine",
+    frequence: "ouverture",
+    items: [
+      { id: "i1", label: "Vérification température réfrigérateurs", requiertPhoto: false, requiertValeur: true },
+      { id: "i2", label: "Contrôle date des produits", requiertPhoto: false, requiertValeur: false },
+      { id: "i3", label: "Nettoyage plans de travail", requiertPhoto: true, requiertValeur: false },
+      { id: "i4", label: "Vérification stocks salle", requiertPhoto: false, requiertValeur: false },
+      { id: "i5", label: "Test équipements (four, friteuse)", requiertPhoto: false, requiertValeur: false },
+    ],
+  },
+  {
+    id: "cl-fermeture",
+    type: "Fermeture cuisine",
+    frequence: "fermeture",
+    items: [
+      { id: "i6", label: "Nettoyage et désinfection cuisine", requiertPhoto: true, requiertValeur: false },
+      { id: "i7", label: "Relevé températures finales", requiertPhoto: false, requiertValeur: true },
+      { id: "i8", label: "Emballage et étiquetage restes", requiertPhoto: false, requiertValeur: false },
+      { id: "i9", label: "Vérification fermeture chambre froide", requiertPhoto: false, requiertValeur: false },
+    ],
+  },
+  {
+    id: "cl-4h",
+    type: "Contrôle 4h",
+    frequence: "4h",
+    items: [
+      { id: "i10", label: "Relevé température réfrigérateurs", requiertPhoto: false, requiertValeur: true },
+      { id: "i11", label: "Vérification hygiène personnelle", requiertPhoto: false, requiertValeur: false },
+    ],
+  },
+];
 
 export function creerEtatMemoire(): EtatMemoire {
   const aujourdhui = jourDeService();
@@ -54,5 +93,7 @@ export function creerEtatMemoire(): EtatMemoire {
       { id: "client-fontaine", restaurantId: r, nom: "M. Fontaine", telephone: "+33 6 00 00 00 01", preferences: "Table calme", notes: "Anniversaire signalé lors de la réservation", createdAt: "2025-04-12T10:00:00.000Z", lastVisitAt: "2026-09-09T19:42:00.000Z" },
       { id: "client-beaumont", restaurantId: r, nom: "Mme Beaumont", notes: "Demander ses allergies à chaque repas", createdAt: "2025-07-20T10:00:00.000Z", lastVisitAt: "2026-09-09T20:08:00.000Z" },
     ],
+    checklists: CHECKLISTS_DEMO.map((c) => ({ ...c, restaurantId: r })),
+    releves: [],
   };
 }

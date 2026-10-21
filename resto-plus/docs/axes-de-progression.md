@@ -17,7 +17,10 @@ Dernière mise à jour : 21 octobre 2026 (socle de tests de l'API)
 > 1. **P1 — Rendre le système réel** 🔴 : Supabase + authentification unifiée.
 >    ↳ **Pendant P1** : passer les départements en données (section « Départements
 >    hôteliers », étape A). C'est le moment le moins cher : avant que les contraintes
->    SQL `check (pole in (...))` soient en production avec de vraies données.
+>    SQL `check (pole in (...))` soient en production avec de vraies données. ✅ fait (`0014`).
+>    ↳ **Ordre de branchement décidé le 21/10** : plan de salle ✅, réservations ✅,
+>    HACCP ✅ → **comptes + Supabase Auth** → délégations (elles désignent de vrais
+>    comptes) → carte / commandes, messagerie, stock, comptes rendus, audit.
 > 2. **P2 — Fiabiliser** 🟠 : tests automatisés, CI, ménage technique.
 > 3. **P3 — Service réel** 🟠 : temps réel, réglages par établissement.
 > 4. **Pilote restaurant** 🟠.
@@ -57,13 +60,15 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
   - [x] clients / réservations (migration `0017`, 22 tests d'intégration) — 21/10/2026, branche `feat/p1-reservations-clients`
         — avec installation des clients en un geste (walk-in « sans résa », client qui
         change de table) et déroulé du dîner enregistré en base
-  - [ ] checklists HACCP
+  - [x] checklists HACCP (migration `0018` : plan HACCP par établissement, relevés
+        non modifiables, heure du téléphone conservée ; 5 tests d'intégration) — 21/10/2026, branche `feat/p1-haccp`
   - [ ] stock (articles, mouvements, alertes)
   - [ ] carte / commandes / additions
   - [ ] messagerie
   - [ ] comptes rendus + journée de service (`journeeStore.ts`)
   - [ ] comptes équipe / invitations
-  - [ ] délégations (`delegationStore.ts`)
+  - [ ] délégations (`delegationStore.ts`) — **après** comptes + Auth : `delegue_id` et
+        `cree_par` désignent de vrais comptes Supabase
   - [ ] journal d'audit (`audit.ts`), avec le verrou anti-modification de `0012`
   - [ ] univers plateforme N4 (`platform.ts`)
 - [ ] Script d'insertion des données de démo en base (restaurant de démo + 7 comptes) —

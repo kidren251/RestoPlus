@@ -7,6 +7,18 @@ import { create } from "zustand";
 import type { Checklist, ChecklistItem, ChecklistEntry } from "@resto-plus/types";
 import { api } from "../api/client";
 import { enqueueSync } from "./syncStore";
+import { nouvelId } from "../utils/identifiant";
+
+/** Relevé tel que renvoyé par l'API (GET /checklist-entries). */
+interface ReleveServeur {
+  id: string;
+  checklistId: string;
+  itemId: string;
+  userId?: string;
+  valeur?: string;
+  photoUrl?: string;
+  releveAt: string;
+}
 
 // Données mockées (Phase 1 sans Supabase)
 const MOCK_CHECKLISTS: Checklist[] = [
@@ -63,8 +75,6 @@ interface ChecklistState {
   getNombreEnAttente: () => number;
 }
 
-let _entryCounter = 0;
-
 export const useChecklistStore = create<ChecklistState>((set, get) => ({
   checklists: [],
   entries: {},
@@ -74,8 +84,26 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
   loadChecklists: async () => {
     set({ isLoading: true });
     try {
-      const data = await api.get<Checklist[]>("/checklists");
-      set({ checklists: data, isLoading: false });
+      const [data, releves] = await Promise.all([
+        api.get<Checklist[]>("/checklists"),
+        api.get<ReleveServeur[]>("/checklist-entries"),
+      ]);
+      // Relevés déjà faits aujourd'hui (sur ce téléphone ou un autre) : le dernier par point.
+      const entries = { ...get().entries };
+      for (const r of releves) {
+        entries[r.itemId] = {
+          id: r.id,
+          checklistId: r.checklistId,
+          itemId: r.itemId,
+          userId: r.userId ?? "",
+          valeur: r.valeur,
+          photoUrl: r.photoUrl,
+          timestamp: r.releveAt,
+          statut: "valide",
+          syncStatus: "synced",
+        };
+      }
+      set({ checklists: data, entries, isLoading: false });
     } catch {
       // Mode offline → données mockées
       set({ checklists: MOCK_CHECKLISTS, isLoading: false });
@@ -84,7 +112,7 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
 
   validerItem: (checklistId, item, valeur, photoUrl) => {
     const entry: ChecklistEntry = {
-      id: `entry_${Date.now()}_${_entryCounter++}`,
+      id: nouvelId(),
       checklistId,
       userId: "current-user", // sera remplacé par l'auth Supabase Phase 2
       itemId: item.id,
@@ -100,6 +128,7 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
     }));
 
     enqueueSync("checklist_entry", {
+      id: entry.id,
       checklistId,
       itemId: item.id,
       valeur,

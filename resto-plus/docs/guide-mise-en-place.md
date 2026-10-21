@@ -26,6 +26,7 @@ au client que ce qui figure dans la partie 3 « Ce qui se règle aujourd'hui ».
 | 8 | À quelle heure finit réellement le dernier service ? | Heure de bascule de la journée (5h par défaut) |
 | 9 | Combien de personnes en salle / en cuisine, et qui les encadre ? | Comptes N0 à N2 à créer, délégations |
 | 10 | Le directeur est-il en salle pendant le service ? | Formation au verrou de service du directeur |
+| 11 | Quels contrôles HACCP faites-vous aujourd'hui (papier) ? À quelle fréquence ? | Plan HACCP à saisir (demande technique) |
 
 Les niveaux : **N0** serveur / commis · **N1** chef de rang / chef de partie ·
 **N2** manager de salle / chef de cuisine · **N3** directeur de l'établissement.
@@ -93,6 +94,9 @@ compte N4, propre au technicien.
 - Heure de bascule de la journée de service et fuseau horaire (`restaurants.heure_bascule_service`).
 - Durées de conservation RGPD (clients 36 mois, messages 12 mois, anciens membres 12 mois).
 - Départements activés (salle, cuisine, direction pour un restaurant).
+- **Plan HACCP** : checklists (ouverture, fermeture, contrôles réguliers) et leurs points
+  de contrôle, à adapter au plan de maîtrise sanitaire du client. Demander au client son
+  plan actuel (papier) lors de l'entretien.
 
 ### Ce qui n'est PAS réglable (et ne doit pas l'être)
 - Les sorties de stock, pertes et ajustements : toujours N2 (chef de cuisine).

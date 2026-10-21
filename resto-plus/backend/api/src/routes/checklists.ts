@@ -1,74 +1,63 @@
 import type { FastifyInstance } from "fastify";
 import { requirePermission } from "../permissions";
 import { journaliser } from "../audit";
-import { duRestaurant, restaurantDe } from "../tenant";
+import { restaurantDe } from "../tenant";
+import { jourEffectif } from "../journeeStore";
+import { repositories } from "../repositories";
 
-// Données mockées — Phase 1
-const MOCK_CHECKLISTS = [
-  {
-    id: "cl-ouverture",
-    type: "Ouverture cuisine",
-    frequence: "ouverture",
-    items: [
-      { id: "i1", label: "Vérification température réfrigérateurs", requiertPhoto: false, requiertValeur: true },
-      { id: "i2", label: "Contrôle date des produits", requiertPhoto: false, requiertValeur: false },
-      { id: "i3", label: "Nettoyage plans de travail", requiertPhoto: true, requiertValeur: false },
-      { id: "i4", label: "Vérification stocks salle", requiertPhoto: false, requiertValeur: false },
-      { id: "i5", label: "Test équipements (four, friteuse)", requiertPhoto: false, requiertValeur: false },
-    ],
-  },
-  {
-    id: "cl-fermeture",
-    type: "Fermeture cuisine",
-    frequence: "fermeture",
-    items: [
-      { id: "i6", label: "Nettoyage et désinfection cuisine", requiertPhoto: true, requiertValeur: false },
-      { id: "i7", label: "Relevé températures finales", requiertPhoto: false, requiertValeur: true },
-      { id: "i8", label: "Emballage et étiquetage restes", requiertPhoto: false, requiertValeur: false },
-      { id: "i9", label: "Vérification fermeture chambre froide", requiertPhoto: false, requiertValeur: false },
-    ],
-  },
-  {
-    id: "cl-4h",
-    type: "Contrôle 4h",
-    frequence: "4h",
-    items: [
-      { id: "i10", label: "Relevé température réfrigérateurs", requiertPhoto: false, requiertValeur: true },
-      { id: "i11", label: "Vérification hygiène personnelle", requiertPhoto: false, requiertValeur: false },
-    ],
-  },
-];
+type CorpsReleve = {
+  id?: string;
+  checklistId?: string;
+  itemId?: string;
+  valeur?: string | number;
+  photoUrl?: string;
+  conforme?: boolean;
+  commentaire?: string;
+  /** Heure du relevé sur le téléphone. */
+  timestamp?: string;
+};
 
-// Entrées en mémoire
-const entries: unknown[] = [];
+/** Heure du relevé : celle du téléphone (relevé fait hors ligne), jamais dans le futur. */
+function heureDuReleve(timestamp: string | undefined): string {
+  const maintenant = Date.now();
+  const t = timestamp ? Date.parse(timestamp) : NaN;
+  return Number.isNaN(t) || t > maintenant + 5 * 60_000 ? new Date(maintenant).toISOString() : new Date(t).toISOString();
+}
 
 export async function checklistsRoutes(app: FastifyInstance) {
-  // GET /checklists
-  app.get("/checklists", async () => {
-    return MOCK_CHECKLISTS;
-  });
+  // GET /checklists — plan HACCP de l'établissement
+  app.get("/checklists", async (req) => repositories.haccp.listerChecklists(restaurantDe(req)));
 
-  // POST /checklist-entries
-  app.post<{ Body: Record<string, unknown> }>("/checklist-entries", { preHandler: requirePermission("checklist.remplir") }, async (req, reply) => {
-    const entry = {
-      id: `entry_${Date.now()}`,
-      ...req.body,
-      restaurantId: restaurantDe(req),
-      receivedAt: new Date().toISOString(),
-    };
-    entries.push(entry);
-    // Relevé sanitaire tel que reçu : il fait foi lors d'un contrôle.
-    const releve = req.body as Record<string, unknown>;
-    const texte = (cle: string) => (typeof releve[cle] === "string" || typeof releve[cle] === "number" || typeof releve[cle] === "boolean" ? (releve[cle] as string | number | boolean) : null);
-    journaliser(req, "haccp.checklist", {
-      cible: { type: "checklist", id: String(texte("checklistId") ?? texte("itemId") ?? entry.id) },
-      details: { entreeId: entry.id, valeur: texte("valeur") ?? texte("temperature"), conforme: texte("conforme"), commentaire: texte("commentaire") },
+  // POST /checklist-entries — un relevé ; il fait foi lors d'un contrôle sanitaire.
+  app.post<{ Body: CorpsReleve }>("/checklist-entries", { preHandler: requirePermission("checklist.remplir") }, async (req, reply) => {
+    const restaurantId = restaurantDe(req);
+    const { checklistId, itemId } = req.body ?? {};
+    if (!checklistId || !itemId || !(await repositories.haccp.pointExiste(restaurantId, checklistId, itemId))) {
+      return reply.status(404).send({ error: "Point de contrôle introuvable" });
+    }
+    const releve = await repositories.haccp.enregistrer(restaurantId, {
+      id: req.body.id,
+      checklistId,
+      itemId,
+      valeur: req.body.valeur === undefined || req.body.valeur === null ? undefined : String(req.body.valeur).slice(0, 200),
+      photoUrl: typeof req.body.photoUrl === "string" ? req.body.photoUrl : undefined,
+      conforme: typeof req.body.conforme === "boolean" ? req.body.conforme : undefined,
+      commentaire: typeof req.body.commentaire === "string" ? req.body.commentaire.slice(0, 1000) : undefined,
+      releveAt: heureDuReleve(req.body.timestamp),
+      userId: req.auth?.userId,
     });
-    return reply.status(201).send(entry);
+    journaliser(req, "haccp.checklist", {
+      cible: { type: "checklist", id: checklistId },
+      details: { entreeId: releve.id, itemId, valeur: releve.valeur ?? null, conforme: releve.conforme ?? null, commentaire: releve.commentaire ?? null, releveAt: releve.releveAt },
+    });
+    return reply.status(201).send(releve);
   });
 
-  // GET /checklist-entries — debug uniquement
-  app.get("/checklist-entries", async (req) => {
-    return duRestaurant(entries as { restaurantId?: string }[], req);
+  // GET /checklist-entries?date=AAAA-MM-JJ — relevés d'une journée de service (par
+  // défaut celle en cours) : l'app retrouve ce qui a déjà été fait aujourd'hui.
+  app.get<{ Querystring: { date?: string } }>("/checklist-entries", async (req) => {
+    const restaurantId = restaurantDe(req);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date ?? "") ? req.query.date! : jourEffectif(restaurantId);
+    return repositories.haccp.releves(restaurantId, date);
   });
 }

@@ -107,6 +107,19 @@ console. Prérequis : `EXPO_PUBLIC_PLATFORM_ROLE=dev_creator` dans `apps/mobile/
 - [ ] Journal d'audit (`comptesalle-3`) : une ligne « Droits du service réglés (N4) ».
 - [ ] **Remettre le réglage sur N0** (valeur par défaut) en fin de test.
 
+## 5 bis. Checklists HACCP sur la vraie base (lot du 21/10)
+
+Compte : `comptecuisin-0` (N0 commis).
+
+- [ ] Checklists HACCP : « Ouverture cuisine », « Fermeture cuisine », « Contrôle 4h ».
+- [ ] Valider « Vérification température réfrigérateurs » avec une valeur (ex. 3.5).
+- [ ] **Fermer l'app, la relancer** : le point est toujours coché (avant, il se perdait).
+- [ ] Sur un **deuxième téléphone** (autre compte cuisine) : le même point apparaît coché.
+- [ ] Hors ligne : valider un point, rallumer le réseau, relancer l'app : il est coché.
+- [ ] Journal d'audit (`comptesalle-3`) : une ligne HACCP par relevé.
+- [ ] Décocher un point puis relancer l'app : il revient coché (le relevé envoyé fait
+      foi). Noter si ce comportement gêne à l'usage.
+
 ## 6. Écrans à droits après le découpage du 10/10
 
 Vérifier que chaque niveau voit exactement ce qu'il doit voir (rien de plus, rien de moins).
