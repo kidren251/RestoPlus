@@ -12,6 +12,8 @@ jusqu'au moyen standing. Focus actuel : la restauration.
 yarn install
 yarn dev:mobile   # lance l'app Expo
 yarn dev:api      # lance l'API Fastify
+yarn workspace @resto-plus/api test        # tests de l'API (Vitest)
+yarn workspace @resto-plus/api typecheck   # vérification TypeScript de l'API
 ```
 
 ## Documentation
@@ -19,4 +21,5 @@ Voir [`docs/architecture.md`](./docs/architecture.md) pour l'architecture techni
 et la feuille de route de référence.
 
 ## Statut
-Étape 0 (setup technique) — en cours. Voir `docs/architecture.md` pour la suite.
+Prototype fonctionnel (API en mémoire, comptes de démo). En cours : **P1 — branchement
+Supabase et authentification réelle**. Détail dans `docs/axes-de-progression.md`.

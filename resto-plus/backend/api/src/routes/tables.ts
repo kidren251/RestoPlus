@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { DishServiceStatus, ServiceCourse, StatutTable } from "@resto-plus/types";
 import { requirePermission } from "../permissions";
 import { restaurantDe } from "../tenant";
 import { tableDuRestaurant } from "./salles";
@@ -17,12 +18,12 @@ export async function tablesRoutes(app: FastifyInstance) {
   // PUT /tables/:id/statut
   app.put<{
     Params: { id: string };
-    Body: { statut: string };
+    Body: { statut: StatutTable };
   }>("/tables/:id/statut", { preHandler: requirePermission("service.suivre") }, async (req, reply) => {
     const { id } = req.params;
     const { statut } = req.body;
 
-    const STATUTS_VALIDES = ["libre", "occupee", "reservee", "a_nettoyer"];
+    const STATUTS_VALIDES: StatutTable[] = ["libre", "occupee", "reservee", "a_nettoyer"];
     if (!STATUTS_VALIDES.includes(statut)) {
       return reply.status(400).send({ error: "Statut invalide" });
     }
@@ -71,13 +72,15 @@ export async function tablesRoutes(app: FastifyInstance) {
   // PUT /tables/:id/service
   app.put<{
     Params: { id: string };
-    Body: { tableId: string; reservationId?: string; clientId?: string; clientName?: string; course: string; dishStatus: string; seatedAt?: string; lastEventAt?: string };
+    Body: { tableId: string; reservationId?: string; clientId?: string; clientName?: string; course: ServiceCourse; dishStatus: DishServiceStatus; seatedAt?: string; lastEventAt?: string };
   }>("/tables/:id/service", { preHandler: requirePermission("service.suivre") }, async (req, reply) => {
     const { course, dishStatus } = req.body;
-    if (!["aucun", "entree", "plat", "dessert"].includes(course)) {
+    const ETAPES: ServiceCourse[] = ["aucun", "entree", "plat", "dessert"];
+    const ETATS_PLAT: DishServiceStatus[] = ["aucun", "a_reclamer", "servi"];
+    if (!ETAPES.includes(course)) {
       return reply.status(400).send({ error: "Étape de repas invalide" });
     }
-    if (!["aucun", "a_reclamer", "servi"].includes(dishStatus)) {
+    if (!ETATS_PLAT.includes(dishStatus)) {
       return reply.status(400).send({ error: "État de plat invalide" });
     }
     tableServices[req.params.id] = {

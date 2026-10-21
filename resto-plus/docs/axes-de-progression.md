@@ -6,7 +6,7 @@ on les coche (`- [x]`). Quand un point est terminé, noter la date et la branche
 
 Légende : 🔴 bloquant pour le pilote · 🟠 important · 🟡 confort / dette technique
 
-Dernière mise à jour : 11 octobre 2026 (départements hôteliers, PMS, décisions produit)
+Dernière mise à jour : 21 octobre 2026 (socle de tests de l'API)
 
 > ## 🧭 Ordre de marche — à relire en début de session
 >
@@ -60,7 +60,7 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
   - [ ] journal d'audit (`audit.ts`), avec le verrou anti-modification de `0012`
   - [ ] univers plateforme N4 (`platform.ts`)
 - [ ] Script d'insertion des données de démo en base (restaurant de démo + 7 comptes)
-- [ ] Relancer `test:isolation` en mode Supabase
+- [ ] Relancer les tests d'isolation en mode Supabase
 
 ### Authentification unifiée
 - [ ] Choisir un seul mécanisme : **Supabase Auth** (recommandé)
@@ -81,10 +81,11 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
 ## P2 — Fiabiliser 🟠
 
 ### Tests
-- [ ] Mettre en place Vitest dans `backend/api` (tests via `app.inject()`, sans serveur)
-- [ ] Séparer la construction de l'app (`buildApp()`) du `listen()` dans `main.ts`
-- [ ] Porter le test d'isolation (`tests/isolation-restaurants.mjs`) dans la suite
-- [ ] Tests de la matrice des droits (les 31 cas de la session du 25/09)
+- [x] Mettre en place Vitest dans `backend/api` (tests via `app.inject()`, sans serveur) — 21/10/2026, branche `chore/socle-tests-api` (`yarn workspace @resto-plus/api test`)
+- [x] Séparer la construction de l'app (`buildApp()`, `src/app.ts`) du `listen()` dans `main.ts` — 21/10/2026, branche `chore/socle-tests-api`
+- [x] Porter le test d'isolation dans la suite (`tests/isolation-restaurants.test.ts`, plus besoin de lancer l'API) — 21/10/2026, branche `chore/socle-tests-api`
+- [ ] Tests de la matrice des droits (les 31 cas de la session du 25/09) — commencé : `tests/droits.test.ts`
+      (`can()` niveau × pôle, refus 403 journalisé, délégation) + `tests/auth-exigee.test.ts`
 - [ ] Tests délégation / messagerie / compte rendu du jour
 - [ ] Tests de clôture de journée (23h40 et 1h55 → même service, 5h00 → suivant)
 - [ ] Tests du journal d'audit (intégrité, falsification détectée, purge à 11 ans,
@@ -97,7 +98,7 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
 - [ ] Ajouter un lint (ESLint) et le brancher dans la CI
 
 ### Ménage technique
-- [ ] Corriger les 2 erreurs TypeScript de `backend/api/src/routes/tables.ts` (l. 30 et 83)
+- [x] Corriger les 2 erreurs TypeScript de `backend/api/src/routes/tables.ts` (l. 30 et 83) — 21/10/2026, branche `chore/socle-tests-api`
 - [ ] `turbo.json` : renommer `pipeline` en `tasks` (Turbo 2)
 - [ ] Retirer `apps/mobile/.expo-test-export/` de git et l'ajouter au `.gitignore`
 - [ ] CORS : limiter les origines autorisées hors mode dev
