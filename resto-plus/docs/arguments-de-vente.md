@@ -11,6 +11,12 @@ taille et leur ambition. Pour eux, remplacer d'un coup tout l'équipement numér
 (terminaux dédiés, caisses, tablettes durcies, infrastructure) pèse trop lourd sur le
 chiffre d'affaires pour être absorbé en une fois.
 
+**Périmètre (décision du 11/10/2026)** : l'application doit pouvoir équiper tout
+établissement, de la **restauration pure jusqu'à l'hôtel de moyen standing**. Les palaces
+et l'ultra haut de gamme sont laissés de côté pour l'instant. **Priorité actuelle : la
+restauration** ; les services hôteliers (maintenance, espaces verts, gouvernance)
+viendront ensuite, activés à la carte pour chaque client.
+
 ---
 
 ## 1. Une transition en douceur plutôt qu'un investissement lourd

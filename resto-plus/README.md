@@ -1,6 +1,10 @@
 # Resto Plus / PalaceOS
 
-Solution mobile bi-espace (Opérationnel / Académie) pour l'hôtellerie et la restauration de luxe.
+Solution mobile bi-espace (Opérationnel / Académie) pour la restauration, puis l'hôtellerie
+jusqu'au moyen standing. Focus actuel : la restauration.
+
+**Feuille de route et tâches en cours : [`docs/axes-de-progression.md`](./docs/axes-de-progression.md)**
+(encadré « Ordre de marche » en tête, à relire en début de session).
 
 ## Démarrer
 

@@ -34,7 +34,8 @@ réelle : chaque table a des coordonnées `(x, y, rotation, forme)` libres, plus
 de décor (`mur`, `bar`, `entree`, `cuisine`) pour repère visuel. Voir `packages/types/src/index.ts`.
 
 ## Roadmap de référence
-Voir la feuille de route complète discutée en conversation :
+**L'ordre de marche à jour (P1 → P2 → P3 → pilote → hôtellerie) et les tâches à cocher
+sont dans [`axes-de-progression.md`](./axes-de-progression.md).** Étapes historiques :
 0. Setup technique (ce dépôt) ✅
 1. MVP restreint (plan de salle + checklists HACCP + offline)
 2. Test terrain sur un établissement pilote
@@ -99,6 +100,31 @@ QR. Un manager authentifié génère une invitation serveur à usage unique avec
 L'intérimaire scanne le QR dans Restau Plus et la redemption publique est limitée au token
 opaque de l'invitation. La génération reste protégée par le restaurant du manager ; le QR
 ne contient aucune donnée client ni clé d'accès permanente.
+
+## Départements, lieux et PMS (cible hôtelière)
+
+L'application vise à équiper tous les services d'un hôtel, pas seulement la salle et la
+cuisine. Modèle retenu : **départements × modules**.
+
+- Un **département** est une équipe (membres N0-N2, canal, délégations, compte rendu).
+  Catalogue de types dans `packages/types/src/departements.ts` : direction, salle,
+  cuisine, maintenance, espaces verts, gouvernance. Le niveau N0-N3 est commun ; seul
+  l'intitulé change selon le département.
+- Un **module** est un outil activé par un département : plan de salle, stock, HACCP,
+  tickets inter-départements, planning, préventif, chambres…
+- Le **référentiel des lieux** (`lieux.ts`) décrit l'établissement : bâtiment > étage >
+  chambre / salle / espace extérieur / équipement. Tickets, gouvernance et préventif
+  s'appuient dessus.
+- Le **PMS** de l'hôtel fait foi pour l'occupation des chambres ; Resto Plus fait foi pour
+  le statut ménage. Tout échange passe par `backend/api/src/pms/` (contrat `PmsConnector`,
+  note d'intégration en tête de `index.ts`). Sans PMS, connecteur manuel.
+- La **mise en place d'un client** (départements, lieux, PMS, horaires) est préparée par le
+  N4 dans la console plateforme avant livraison : `ConfigurationEtablissement`
+  (`etablissement.ts`).
+
+État : fondations (types + contrat PMS) seulement. Le code utilise encore le type fermé
+`Pole` ; la bascule vers des départements en données est prévue pendant le branchement
+Supabase. Suivi détaillé : `docs/axes-de-progression.md`, section « Départements hôteliers ».
 
 ## Sécurité : règles à respecter pour toute nouvelle fonctionnalité
 

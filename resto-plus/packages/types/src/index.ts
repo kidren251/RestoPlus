@@ -437,3 +437,7 @@ export interface IdentiteConnexion {
 export * from "./permissions";
 export * from "./serviceDay";
 export * from "./audit";
+export * from "./departements";
+export * from "./lieux";
+export * from "./pms";
+export * from "./etablissement";

@@ -61,6 +61,10 @@ export const PERMISSIONS = {
   "stock.entree": { minLevel: 1, poles: CUISINE }, // créer un article, réception
   "stock.sortie": { minLevel: 2, poles: CUISINE }, // sortie, perte, ajustement, suppression d'article
   "carte.gerer": { minLevel: 1, poles: CUISINE },
+
+  // Tickets inter-départements (module « tickets », pas encore développé).
+  // Décision du 11/10/2026 : création de N1 à N3, pas par un N0 (qui signale à son N1).
+  "tickets.creer": { minLevel: 1 },
 } as const satisfies Record<string, PermissionRule>;
 
 export type Permission = keyof typeof PERMISSIONS;
