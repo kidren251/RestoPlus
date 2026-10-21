@@ -11,11 +11,12 @@ const ESPACES = {
     title: "Le passe et la production",
     subtitle: "Centraliser les contrôles, les températures et les plats à envoyer.",
     actions: [
-      { id: "checklists", label: "Checklists HACCP", detail: "Ouverture, fermeture et contrôles 4h" },
+      { id: "checklists", label: "Checklists HACCP", detail: "Réception, températures, ouverture et fermeture" },
       { id: "commandes_cuisine", label: "Suivi des plats", detail: "Plats en attente, en préparation et prêts" },
       { id: "gestion_stocks", label: "Gestion des stocks", detail: "Ingrédients, quantités et alertes de seuil" },
       { id: "gestion_carte", label: "Gestion de la carte", detail: "Plats, ingrédients liés et marge estimée" },
       { id: "compte_rendu", label: "Compte rendu du service", detail: "Vérifier les sorties de stock et valider en fin de journée" },
+      { id: "plan_haccp", label: "Plan HACCP", detail: "Checklists, points de contrôle et seuils de l’établissement" },
     ],
   },
   salle: {
@@ -51,6 +52,7 @@ const ADMIN_MARKS: Record<string, string> = {
   gestion_acces: "⌘",
   configurateur_salle: "▦",
   compte_rendu: "✎",
+  plan_haccp: "✚",
   comptes_rendus_recus: "✉",
   comptes_equipe: "◎",
   delegations: "⇄",
@@ -64,6 +66,7 @@ export function EspaceEquipeScreen({ espace, onNavigate }: { espace: EspaceEquip
     (action.id !== "gestion_acces" || allows("acces.gerer")) &&
     (action.id !== "configurateur_salle" || allows("salle.configurer")) &&
     (action.id !== "inviter_equipier" || allows("invitation.creer")) &&
+    (action.id !== "plan_haccp" || allows("haccp.configurer")) &&
     (action.id !== "compte_rendu" || allows(espace === "cuisine" ? "compte_rendu.cuisine" : "compte_rendu.salle"))
   );
   const adminActionIds = Object.keys(ADMIN_MARKS);

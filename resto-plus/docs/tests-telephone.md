@@ -111,8 +111,13 @@ console. Prérequis : `EXPO_PUBLIC_PLATFORM_ROLE=dev_creator` dans `apps/mobile/
 
 Compte : `comptecuisin-0` (N0 commis).
 
-- [ ] Checklists HACCP : « Ouverture cuisine », « Fermeture cuisine », « Contrôle 4h ».
-- [ ] Valider « Vérification température réfrigérateurs » avec une valeur (ex. 3.5).
+- [ ] 5 checklists : Réception des marchandises, Ouverture cuisine, Températures pendant
+      le service, Fermeture cuisine, Contrôles hebdomadaires.
+- [ ] Sous chaque point chiffré : « Attendu : 0 à 4 °C » (ou ≤, ≥) et sa consigne.
+- [ ] « Température chambre froide positive » : taper **6** → le champ passe en rouge avec
+      « Hors seuil… » ; valider → case rouge « ! » et « 6 °C · NON CONFORME » ; bandeau
+      « 1 relevé hors seuil aujourd'hui » en haut.
+- [ ] Même point, « Refaire le relevé » avec **3,5** → affichage normal (doré), 2 relevés.
 - [ ] **Fermer l'app, la relancer** : le point est toujours coché (avant, il se perdait).
 - [ ] Sur un **deuxième téléphone** (autre compte cuisine) : le même point apparaît coché.
 - [ ] Hors ligne : valider un point, rallumer le réseau, relancer l'app : il est coché.
@@ -122,6 +127,22 @@ Compte : `comptecuisin-0` (N0 commis).
       ligne affiche la nouvelle valeur et « 2 relevés aujourd'hui ». Relancer l'app :
       toujours 2 relevés, la valeur affichée est la plus récente.
 - [ ] « Refaire le relevé » puis « Annuler » : rien n'est enregistré.
+
+## 5 ter. Plan HACCP (écran d'édition)
+
+Compte : `comptecuisin-2` (N2 chef de cuisine).
+
+- [ ] Espace cuisine → tuile « Plan HACCP » ; bandeau d'avertissement (plan à valider).
+- [ ] Ouvrir « Ouverture cuisine » → toucher un point → modifier le maximum (4 → 3) →
+      Enregistrer. Dans « Checklists HACCP » : « Attendu : 0 à 3 °C ».
+- [ ] « ＋ Ajouter un point de contrôle » : « Température frigo du bar », valeur chiffrée,
+      max 4, °C → il apparaît dans les relevés.
+- [ ] Saisir un minimum plus grand que le maximum : message d'erreur, rien n'est changé.
+- [ ] « Retirer ce point du plan » : il disparaît des relevés ; ses relevés passés restent.
+- [ ] Créer une checklist « Bar » (fréquence « À l'ouverture »), puis la retirer.
+- [ ] Journal d'audit (`comptesalle-3`) : lignes « Plan HACCP modifié ».
+- [ ] `comptecuisin-0` et `comptecuisin-1` : pas de tuile « Plan HACCP ».
+- [ ] Remettre le plan de démo : `yarn workspace @resto-plus/api db:seed`.
 
 ## 6. Écrans à droits après le découpage du 10/10
 

@@ -146,10 +146,18 @@ Ce travail était resté non commité : il l'a été en début de session.
   un relevé renvoyé deux fois par la file hors ligne n'est gardé qu'une fois.
 - Décision : un point validé ne se décoche plus ; **« Refaire le relevé »** ajoute un
   nouveau relevé, l'ancien reste dans l'historique (« 2 relevés aujourd'hui »).
-- Le contenu du plan HACCP de démo vient du prototype : **il n'est pas conforme** (points
-  manquants : réception, refroidissement, remise en température, maintien au chaud,
-  huiles, traçabilité, nettoyage, nuisibles). À réécrire sur la base du GBPH du
-  restaurateur et à faire valider par un professionnel de l'hygiène.
+- Le plan HACCP du prototype n'était pas conforme : **réécrit** sur la structure du GBPH
+  du restaurateur (5 checklists, 23 points : réception, froid positif et négatif,
+  refroidissement rapide, remise en température, maintien au chaud et au froid, huiles,
+  étiquetage, nettoyage, nuisibles), dans `backend/db/plan-haccp-demo.json`. **Reste à
+  faire valider par un professionnel de l'hygiène.**
+- **Seuils** par point (migration `0019`) : valeur hors seuil en rouge dès la saisie,
+  relevé non conforme décidé par l'API ; chaque relevé garde une copie du libellé et des
+  seuils du moment.
+- **Écran « Plan HACCP »** (chef de cuisine N2, directeur N3) : checklists, points,
+  fréquences, seuils, consignes ; rien n'est supprimé (désactivation) ; journalisé.
+- Guide du technicien : le plan HACCP devient un **point de vigilance à chaque audit**
+  (partie 4 bis). Argument de vente n° 5 « Un plan HACCP prêt pour le contrôle sanitaire ».
 
 ### Documents
 
@@ -171,8 +179,8 @@ Ce travail était resté non commité : il l'a été en début de session.
 
 - En base : plan de salle, réservations, clients, HACCP. Stock, carte, messagerie,
   comptes rendus, comptes, délégations et audit restent en mémoire.
-- HACCP : le plan ne se modifie pas encore depuis l'app ; son contenu de démo n'est
-  pas conforme (voir plus haut).
+- HACCP : plan de démo à faire valider par un professionnel de l'hygiène ; pas encore
+  d'action corrective ni d'alerte au responsable sur un relevé hors seuil.
 - Installer un client hors ligne ouvre la table sur le téléphone sans réservation (pas
   de rattachement automatique au retour du réseau).
 - L'écran Réservations n'a plus de liste de démo intégrée : sans API joignable, il est vide.
@@ -182,9 +190,9 @@ Ce travail était resté non commité : il l'a été en début de session.
 
 ## Vérifications
 
-- 112 tests API en mémoire : au vert. 27 tests d'intégration sur la base de dev
+- 126 tests API en mémoire : au vert. 29 tests d'intégration sur la base de dev
   (`test:supabase`) : au vert (persistance après redémarrage, gestes du service,
-  droits réglés par le N4, HACCP, isolation).
+  droits réglés par le N4, HACCP avec seuils et édition du plan, isolation).
 - Scénarios en base dans des transactions annulées : 0014 (8 contrôles), 0015
   (22 contrôles, dont les droits d'exécution de la clé publique).
 - `tsc --noEmit` : aucune erreur sur l'app et sur l'API.
@@ -196,7 +204,7 @@ Ce travail était resté non commité : il l'a été en début de session.
 
 Branches poussées et fusionnées dans `test` (jamais dans `main` sans feu vert) :
 `refactor/decoupage-gros-fichiers`, `chore/socle-tests-api`, `feat/p1-supabase-schema`,
-`feat/p1-branchement-salles`, `feat/p1-reservations-clients`, `feat/p1-haccp`.
+`feat/p1-branchement-salles`, `feat/p1-reservations-clients`, `feat/p1-haccp`, `feat/haccp-plan-seuils`.
 
 ## Prochaine étape recommandée
 

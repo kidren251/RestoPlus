@@ -1,0 +1,58 @@
+{
+  "_avertissement": "Plan HACCP de démonstration, inspiré de la structure du Guide de bonnes pratiques d'hygiène (GBPH) du restaurateur. Repères usuels, NON VALIDÉS par un professionnel de l'hygiène : à faire relire, puis à adapter au plan de maîtrise sanitaire (PMS) de chaque établissement. Utilisé par src/repositories/memoire.ts et scripts/seed-demo.mjs.",
+  "checklists": [
+    {
+      "nom": "Réception des marchandises",
+      "frequence": "reception",
+      "items": [
+        { "label": "Température des produits frais réfrigérés", "requiertValeur": true, "seuilMax": 4, "unite": "°C", "consigne": "Viandes hachées et produits de la mer : plus strict selon l'étiquette" },
+        { "label": "Température des produits surgelés", "requiertValeur": true, "seuilMax": -15, "unite": "°C", "consigne": "-18 °C attendus, tolérance -15 °C à la livraison" },
+        { "label": "Emballages intacts et camion propre", "requiertValeur": false },
+        { "label": "Dates limites (DLC / DDM) et étiquetage vérifiés", "requiertValeur": false },
+        { "label": "Produits non conformes refusés ou isolés", "requiertValeur": false }
+      ]
+    },
+    {
+      "nom": "Ouverture cuisine",
+      "frequence": "ouverture",
+      "items": [
+        { "label": "Température chambre froide positive", "requiertValeur": true, "seuilMin": 0, "seuilMax": 4, "unite": "°C" },
+        { "label": "Température réfrigérateurs des postes", "requiertValeur": true, "seuilMin": 0, "seuilMax": 4, "unite": "°C" },
+        { "label": "Température congélateur / chambre négative", "requiertValeur": true, "seuilMax": -18, "unite": "°C" },
+        { "label": "DLC des produits entamés et des préparations contrôlées", "requiertValeur": false },
+        { "label": "Tenue propre, lavage des mains, bijoux retirés", "requiertValeur": false },
+        { "label": "Plans de travail et matériel propres avant production", "requiertValeur": false }
+      ]
+    },
+    {
+      "nom": "Températures pendant le service",
+      "frequence": "service",
+      "items": [
+        { "label": "Refroidissement rapide : température à cœur après 2 h", "requiertValeur": true, "seuilMax": 10, "unite": "°C", "consigne": "De +63 °C à moins de +10 °C en moins de 2 h (cellule de refroidissement)" },
+        { "label": "Remise en température : température à cœur", "requiertValeur": true, "seuilMin": 63, "unite": "°C", "consigne": "Atteindre +63 °C en moins d'1 h" },
+        { "label": "Maintien au chaud", "requiertValeur": true, "seuilMin": 63, "unite": "°C" },
+        { "label": "Maintien au froid des préparations (vitrine, bac)", "requiertValeur": true, "seuilMax": 4, "unite": "°C" }
+      ]
+    },
+    {
+      "nom": "Fermeture cuisine",
+      "frequence": "fermeture",
+      "items": [
+        { "label": "Nettoyage et désinfection selon le plan de nettoyage", "requiertValeur": false, "requiertPhoto": true },
+        { "label": "Préparations conservées étiquetées (nom, date de fabrication, DLC)", "requiertValeur": false },
+        { "label": "Température chambre froide positive en fin de service", "requiertValeur": true, "seuilMin": 0, "seuilMax": 4, "unite": "°C" },
+        { "label": "Portes des chambres froides bien fermées", "requiertValeur": false },
+        { "label": "Poubelles vidées, local déchets propre", "requiertValeur": false }
+      ]
+    },
+    {
+      "nom": "Contrôles hebdomadaires",
+      "frequence": "hebdomadaire",
+      "items": [
+        { "label": "Huile de friture : test de composés polaires", "requiertValeur": true, "seuilMax": 24, "unite": "%", "consigne": "Limite réglementaire 25 % : changer l'huile avant" },
+        { "label": "Nettoyage approfondi (chambres froides, hottes, filtres)", "requiertValeur": false },
+        { "label": "Lutte contre les nuisibles : pièges contrôlés, passage du prestataire", "requiertValeur": false }
+      ]
+    }
+  ]
+}

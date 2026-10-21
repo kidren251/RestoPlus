@@ -61,6 +61,7 @@ export const PERMISSIONS = {
 
   // Cuisine
   "checklist.remplir": { minLevel: 0, poles: CUISINE },
+  "haccp.configurer": { minLevel: 2, poles: CUISINE }, // plan HACCP : checklists, points, seuils (non réglable)
   "cuisine.plat_pret": { minLevel: 0, poles: CUISINE },
   // Le cuisinier charge le stock seul ; toute baisse engage le chef (comptabilité).
   "stock.entree": { minLevel: 1, poles: CUISINE }, // créer un article, réception

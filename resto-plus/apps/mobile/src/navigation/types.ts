@@ -5,6 +5,7 @@ export type RootStackParamList = {
   Accueil: undefined;
   PlanSalle: undefined;
   Checklist: undefined;
+  PlanHaccp: undefined;
   Reservations: undefined;
   TachesSalle: undefined;
   ClientEdition: { tableId: string };

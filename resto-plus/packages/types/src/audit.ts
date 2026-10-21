@@ -37,6 +37,7 @@ export type AuditAction =
   | "journee.cloturee"
   // HACCP
   | "haccp.checklist"
+  | "haccp.plan_modifie"
   // Comptes et droits
   | "compte.cree"
   | "compte.nouveau_code"
@@ -64,6 +65,7 @@ export const CATEGORIE_ACTION: Record<AuditAction, AuditCategorie> = {
   "compte_rendu.valide": "comptabilite",
   "journee.cloturee": "comptabilite",
   "haccp.checklist": "haccp",
+  "haccp.plan_modifie": "haccp",
   "compte.cree": "administration",
   "compte.nouveau_code": "administration",
   "compte.active": "administration",

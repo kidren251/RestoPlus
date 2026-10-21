@@ -10,6 +10,9 @@
  *
  * Lancer : yarn workspace @resto-plus/api db:seed   (SUPABASE_DB_URL dans .env)
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 const RESTAURANT = "d3e00000-0000-4000-8000-000000000001"; // = DEMO_RESTAURANT_ID (src/tenant.ts)
@@ -40,26 +43,11 @@ const RESERVATIONS = [
   { n: 4, table: 6, client: null, nom: "Famille Moreau", couverts: 4, heure: "19:00", allergenes: [], notes: null, source: "site" },
   { n: 5, table: 1, client: null, nom: "Mme Leclerc", couverts: 2, heure: "21:00", allergenes: ["fruits de mer"], notes: "VIP — compte fidélité", source: "telephone" },
 ];
-// Plan HACCP (même contenu que CHECKLISTS_DEMO dans src/repositories/memoire.ts).
-const CHECKLISTS = [
-  { n: 1, nom: "Ouverture cuisine", frequence: "ouverture", items: [
-    ["Vérification température réfrigérateurs", false, true],
-    ["Contrôle date des produits", false, false],
-    ["Nettoyage plans de travail", true, false],
-    ["Vérification stocks salle", false, false],
-    ["Test équipements (four, friteuse)", false, false],
-  ] },
-  { n: 2, nom: "Fermeture cuisine", frequence: "fermeture", items: [
-    ["Nettoyage et désinfection cuisine", true, false],
-    ["Relevé températures finales", false, true],
-    ["Emballage et étiquetage restes", false, false],
-    ["Vérification fermeture chambre froide", false, false],
-  ] },
-  { n: 3, nom: "Contrôle 4h", frequence: "4h", items: [
-    ["Relevé température réfrigérateurs", false, true],
-    ["Vérification hygiène personnelle", false, false],
-  ] },
-];
+// Plan HACCP de démo (inspiré du GBPH, NON validé) : même fichier que le mode mémoire.
+const PLAN_HACCP = JSON.parse(
+  fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../db/plan-haccp-demo.json"), "utf8")
+);
+const CHECKLISTS = PLAN_HACCP.checklists;
 const DECOR = [
   { n: 1, type: "bar", x: 210, y: 20, largeur: 90, hauteur: 30 },
   { n: 2, type: "entree", x: 0, y: 350, largeur: 60, hauteur: 20 },
@@ -116,24 +104,29 @@ try {
   // Plan HACCP ; les relevés de démo repartent de zéro.
   await client.query("delete from checklist_entries where restaurant_id = $1", [RESTAURANT]);
   let numeroItem = 0;
-  for (const c of CHECKLISTS) {
+  for (const [index, c] of CHECKLISTS.entries()) {
     await client.query(
       `insert into checklists (id, restaurant_id, nom, frequence, departement, ordre, actif)
        values ($1, $2, $3, $4, 'cuisine', $5, true)
        on conflict (id) do update set nom = excluded.nom, frequence = excluded.frequence, ordre = excluded.ordre, actif = true`,
-      [id("d", c.n), RESTAURANT, c.nom, c.frequence, c.n]
+      [id("d", index + 1), RESTAURANT, c.nom, c.frequence, index + 1]
     );
-    for (const [ordre, [label, photo, valeur]] of c.items.entries()) {
+    for (const [ordre, item] of c.items.entries()) {
       numeroItem += 1;
       await client.query(
-        `insert into checklist_items (id, checklist_id, label, requiert_photo, requiert_valeur, ordre)
-         values ($1, $2, $3, $4, $5, $6)
-         on conflict (id) do update set label = excluded.label, requiert_photo = excluded.requiert_photo,
-           requiert_valeur = excluded.requiert_valeur, ordre = excluded.ordre`,
-        [id("1", numeroItem), id("d", c.n), label, photo, valeur, ordre]
+        `insert into checklist_items (id, checklist_id, label, requiert_photo, requiert_valeur, seuil_min, seuil_max, unite, consigne, ordre, actif)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)
+         on conflict (id) do update set checklist_id = excluded.checklist_id, label = excluded.label,
+           requiert_photo = excluded.requiert_photo, requiert_valeur = excluded.requiert_valeur,
+           seuil_min = excluded.seuil_min, seuil_max = excluded.seuil_max, unite = excluded.unite,
+           consigne = excluded.consigne, ordre = excluded.ordre, actif = true`,
+        [id("1", numeroItem), id("d", index + 1), item.label, !!item.requiertPhoto, item.requiertValeur,
+         item.seuilMin ?? null, item.seuilMax ?? null, item.unite ?? null, item.consigne ?? null, ordre]
       );
     }
   }
+  // Checklists et points de démo au-delà du plan actuel (anciennes versions) : retirés.
+  await client.query("update checklists set actif = false where restaurant_id = $1 and ordre > $2", [RESTAURANT, CHECKLISTS.length]);
 
   // Remise à zéro du service en cours (une démo repart d'une salle vide) et des
   // réservations (le déroulé du dîner part avec elles).

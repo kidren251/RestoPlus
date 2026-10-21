@@ -179,14 +179,19 @@ contient 2 écrans → les séparer).
 ---
 
 ## HACCP — contenu du plan 🟠
-- [ ] Réécrire le plan HACCP de démo sur la base du GBPH du restaurateur (réception,
+- [x] Réécrire le plan HACCP de démo sur la base du GBPH du restaurateur (réception,
       froid positif / négatif, refroidissement rapide, remise en température, maintien
-      au chaud, huiles, traçabilité, nettoyage, nuisibles)
+      au chaud, huiles, traçabilité, nettoyage, nuisibles) — 21/10/2026, branche `feat/haccp-plan-seuils` —
+      `backend/db/plan-haccp-demo.json`
 - [ ] Le faire relire par un professionnel de l'hygiène
-- [ ] Écran d'édition du plan HACCP (N2 cuisine ou technicien) : checklists, points,
-      fréquences, seuils
-- [ ] Seuils par point (ex. froid positif ≤ +4 °C) : relevé hors seuil signalé en rouge
-      et non conforme automatiquement
+- [x] Écran d'édition du plan HACCP (N2 cuisine, N3) : checklists, points,
+      fréquences, seuils, consignes ; journalisé — 21/10/2026, branche `feat/haccp-plan-seuils`
+- [x] Seuils par point (ex. froid positif ≤ +4 °C) : relevé hors seuil signalé en rouge
+      et non conforme automatiquement (décidé par l'API) — 21/10/2026, branche `feat/haccp-plan-seuils`
+- [ ] Action corrective sur un relevé hors seuil (ce qui a été fait : produit jeté,
+      réglage du frigo, technicien appelé), exigée par le PMS
+- [ ] Alerte au responsable (N2) quand un relevé est hors seuil
+- [ ] Plats témoins (restauration collective) : module dédié si un client en a besoin
 
 ---
 

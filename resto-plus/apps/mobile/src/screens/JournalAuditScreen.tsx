@@ -28,6 +28,7 @@ const LIBELLE_ACTION: Record<AuditAction, string> = {
   "delegation.creee": "Délégation accordée",
   "delegation.revoquee": "Délégation terminée",
   "droits.reglages_modifies": "Droits du service réglés (N4)",
+  "haccp.plan_modifie": "Plan HACCP modifié",
   "invitation.creee": "Invitation intérimaire créée",
   "invitation.utilisee": "Invitation intérimaire utilisée",
   "connexion.reussie": "Connexion",
