@@ -9,6 +9,9 @@ import type { SallesRepository } from "./salles";
 import { creerSallesMemoire } from "./salles.memoire";
 import { creerSallesSupabase } from "./salles.supabase";
 import type { ServiceRepository } from "./service";
+import type { HaccpRepository } from "./haccp";
+import { creerHaccpMemoire } from "./haccp.memoire";
+import { creerHaccpSupabase } from "./haccp.supabase";
 
 /**
  * Point d'entrée des repositories : Supabase si SUPABASE_URL et une clé sont
@@ -24,6 +27,7 @@ export interface Repositories {
   clients: ClientsRepository;
   service: ServiceRepository;
   etablissements: EtablissementsRepository;
+  haccp: HaccpRepository;
 }
 
 export function creerRepositories(): Repositories {
@@ -34,6 +38,7 @@ export function creerRepositories(): Repositories {
       clients: creerClientsSupabase(supabase),
       service: creerServiceSupabase(supabase),
       etablissements: creerEtablissementsSupabase(supabase),
+      haccp: creerHaccpSupabase(supabase),
     };
   }
   const etat = creerEtatMemoire();
@@ -43,6 +48,7 @@ export function creerRepositories(): Repositories {
     clients: creerClientsMemoire(etat),
     service: creerServiceMemoire(etat),
     etablissements: creerEtablissementsMemoire(etat),
+    haccp: creerHaccpMemoire(etat),
   };
 }
 

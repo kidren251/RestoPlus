@@ -4,7 +4,7 @@ Aide-mémoire du schéma de la base. Les fichiers sont dans `backend/db/migratio
 appliqués dans l'ordre. **Une migration appliquée ne se modifie plus** : pour changer
 quelque chose, on en écrit une nouvelle.
 
-Dernière mise à jour : 21 octobre 2026 — 17 migrations, toutes appliquées sur la base
+Dernière mise à jour : 21 octobre 2026 — 18 migrations, toutes appliquées sur la base
 de dev (`restau-plus.v1-dev`, Paris).
 
 ## Commandes
@@ -61,6 +61,7 @@ rejoue jamais deux fois la même. Connexion : `SUPABASE_DB_URL` dans `backend/ap
 | 0015 | `rgpd` | **RGPD** : allergies seulement le temps du repas (jamais sur la fiche client, refusées sans signalement du client, effacées à la fin du repas) ; durées de conservation par établissement ; anonymisation à la demande ; purge automatique chaque nuit (3h30) et effacement des allergies toutes les heures. Ferme une faille : la purge de l'audit était appelable avec la clé publique. Détails : `docs/rgpd.md`. |
 | 0016 | `plan_de_salle` | Ce qu'il manquait pour brancher le plan de salle : nom et zone des tables, positions décimales, **décor** (`elements_decor`), **repas en cours** à chaque table (`etat_service_tables`). |
 | 0017 | `reservations_installation` | **Droits du service réglables** par établissement (`restaurants.reglages_droits`, console N4). Réservations : heure locale « 19:30 » convertie en instant exact avec le fuseau du restaurant (0h30 compte pour la veille). Trois **gestes du service** en une transaction chacun : `installer_clients` (réservation ou walk-in « sans résa »), `deplacer_repas` (changer de table), `terminer_repas` (addition). Nouveau type d'événement `changement_table`. |
+| 0018 | `haccp` | **Plan HACCP par établissement** (les checklists appartenaient à toute la base) : `restaurant_id`, département, ordre. **Relevés** : heure du téléphone (`releve_at`, même hors ligne), journée de service, conformité, commentaire ; **impossibles à modifier** (trigger). |
 
 ## Les tables par thème
 

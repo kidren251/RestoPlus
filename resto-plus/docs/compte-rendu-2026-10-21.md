@@ -30,6 +30,8 @@ Ce travail était resté non commité : il l'a été en début de session.
 - **Plan de salle branché sur Supabase** : les données survivent au redémarrage.
 - **Réservations et clients branchés**, avec l'installation des clients en un geste.
 - **Droits du service réglables par établissement** depuis la console N4.
+- **Checklists HACCP branchées** ; deux documents : tests sur téléphone et guide de
+  mise en place pour le technicien.
 
 ## Réalisations
 
@@ -132,6 +134,25 @@ Ce travail était resté non commité : il l'a été en début de session.
 - La console N4 est de nouveau accessible en mode démo sur la base de dev
   (`REQUIRE_AUTH=false`) ; réservée à un vrai compte N4 dès que l'auth est exigée.
 
+### Checklists HACCP
+
+- Décision : ordre de branchement revu — HACCP, puis **comptes + Supabase Auth**, puis
+  délégations (en base, une délégation désigne de vrais comptes ; les brancher avant
+  l'Auth aurait imposé un bricolage à refaire).
+- Migration `0018` : plan HACCP propre à chaque établissement ; relevé avec l'heure du
+  téléphone (fait hors ligne), journée de service, conformité, commentaire ; un relevé
+  ne peut pas être modifié, même directement en base.
+- L'app retrouve au démarrage les relevés du jour (avant : perdus à chaque relance) ;
+  un relevé renvoyé deux fois par la file hors ligne n'est gardé qu'une fois.
+
+### Documents
+
+- `docs/tests-telephone.md` : tout ce qu'il reste à vérifier sur téléphone, par
+  parcours, avec le compte à utiliser et le résultat attendu.
+- `docs/guide-mise-en-place.md` : pour le technicien — questions à poser, 4 profils de
+  restaurant (brasserie, traditionnel, gastronomique, petite équipe) avec leurs
+  réglages de droits, ce qui se règle où, liste de contrôle avant livraison.
+
 ### Côté commercial
 
 - Argument de vente n° 3 : « Le RGPD géré par l'outil », avec une rubrique
@@ -142,8 +163,10 @@ Ce travail était resté non commité : il l'a été en début de session.
 
 ## Points encore en prototype
 
-- En base : plan de salle, réservations, clients. Stock, carte, messagerie, comptes
-  rendus, comptes, délégations et audit restent en mémoire.
+- En base : plan de salle, réservations, clients, HACCP. Stock, carte, messagerie,
+  comptes rendus, comptes, délégations et audit restent en mémoire.
+- HACCP : « décocher » un point n'efface que l'affichage local ; le relevé envoyé fait
+  foi et revient à la relance. Le plan HACCP ne se modifie pas encore depuis l'app.
 - Installer un client hors ligne ouvre la table sur le téléphone sans réservation (pas
   de rattachement automatique au retour du réseau).
 - L'écran Réservations n'a plus de liste de démo intégrée : sans API joignable, il est vide.
@@ -153,9 +176,9 @@ Ce travail était resté non commité : il l'a été en début de session.
 
 ## Vérifications
 
-- 103 tests API en mémoire : au vert. 22 tests d'intégration sur la base de dev
+- 112 tests API en mémoire : au vert. 27 tests d'intégration sur la base de dev
   (`test:supabase`) : au vert (persistance après redémarrage, gestes du service,
-  droits réglés par le N4, isolation).
+  droits réglés par le N4, HACCP, isolation).
 - Scénarios en base dans des transactions annulées : 0014 (8 contrôles), 0015
   (22 contrôles, dont les droits d'exécution de la clé publique).
 - `tsc --noEmit` : aucune erreur sur l'app et sur l'API.
@@ -167,13 +190,13 @@ Ce travail était resté non commité : il l'a été en début de session.
 
 Branches poussées et fusionnées dans `test` (jamais dans `main` sans feu vert) :
 `refactor/decoupage-gros-fichiers`, `chore/socle-tests-api`, `feat/p1-supabase-schema`,
-`feat/p1-branchement-salles`, `feat/p1-reservations-clients`.
+`feat/p1-branchement-salles`, `feat/p1-reservations-clients`, `feat/p1-haccp`.
 
 ## Prochaine étape recommandée
 
 1. Tester sur téléphone le lot du jour, puis fusionner `test` dans `main`.
-2. Continuer le branchement : checklists, délégations, carte et commandes, messagerie,
-   stock, comptes rendus, comptes, audit.
-3. Remplacer le type `Pole` par les départements dans le code.
+2. **Comptes de l'équipe + Supabase Auth** (connexion avec jeton), puis délégations.
+3. Continuer le branchement : carte et commandes, messagerie, stock, comptes rendus, audit.
+4. Remplacer le type `Pole` par les départements dans le code.
 4. Supabase Auth (connexion avec jeton) et `REQUIRE_AUTH=true` par défaut.
 5. Faire valider par un juriste les points listés dans `docs/rgpd.md`.

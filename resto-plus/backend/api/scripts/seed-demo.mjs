@@ -2,7 +2,8 @@
  * Données de démo en base — Resto Plus
  *
  * Insère (ou remet à zéro) le restaurant de démo : ses départements, sa salle, ses
- * tables, son décor, ses clients et les réservations du soir (journée en cours). Mêmes valeurs que le mode mémoire (repositories/*.memoire.ts),
+ * tables, son décor, ses clients, les réservations du soir (journée en cours) et son
+ * plan HACCP (les relevés de démo sont effacés). Mêmes valeurs que le mode mémoire (repositories/*.memoire.ts),
  * avec des uuid fixes : le script peut être relancé sans créer de doublons.
  * Les domaines non encore branchés (stock, carte, comptes…) s'ajouteront ici au fur et
  * à mesure (docs/axes-de-progression.md, P1).
@@ -13,7 +14,11 @@ import pg from "pg";
 
 const RESTAURANT = "d3e00000-0000-4000-8000-000000000001"; // = DEMO_RESTAURANT_ID (src/tenant.ts)
 const SALLE = "d3e00000-0000-4000-8000-00000000a001";
-const id = (prefixe, n) => `d3e00000-0000-4000-8000-00000000${prefixe}${String(n).padStart(3, "0")}`;
+// uuid fixe : le préfixe (un caractère hexadécimal) distingue le type de donnée.
+const id = (prefixe, n) => {
+  if (!/^[0-9a-f]$/.test(prefixe)) throw new Error(`Préfixe d'identifiant invalide : ${prefixe}`);
+  return `d3e00000-0000-4000-8000-00000000${prefixe}${String(n).padStart(3, "0")}`;
+};
 
 const TABLES = [
   { n: 1, x: 20, y: 30, largeur: 60, hauteur: 60, rotation: 0, forme: "ronde", capacite: 2, zone: "z1" },
@@ -34,6 +39,26 @@ const RESERVATIONS = [
   { n: 3, table: 4, client: null, nom: "M. Renard", couverts: 6, heure: "20:30", allergenes: ["arachides"], notes: "Client régulier — table habituelle", source: "telephone" },
   { n: 4, table: 6, client: null, nom: "Famille Moreau", couverts: 4, heure: "19:00", allergenes: [], notes: null, source: "site" },
   { n: 5, table: 1, client: null, nom: "Mme Leclerc", couverts: 2, heure: "21:00", allergenes: ["fruits de mer"], notes: "VIP — compte fidélité", source: "telephone" },
+];
+// Plan HACCP (même contenu que CHECKLISTS_DEMO dans src/repositories/memoire.ts).
+const CHECKLISTS = [
+  { n: 1, nom: "Ouverture cuisine", frequence: "ouverture", items: [
+    ["Vérification température réfrigérateurs", false, true],
+    ["Contrôle date des produits", false, false],
+    ["Nettoyage plans de travail", true, false],
+    ["Vérification stocks salle", false, false],
+    ["Test équipements (four, friteuse)", false, false],
+  ] },
+  { n: 2, nom: "Fermeture cuisine", frequence: "fermeture", items: [
+    ["Nettoyage et désinfection cuisine", true, false],
+    ["Relevé températures finales", false, true],
+    ["Emballage et étiquetage restes", false, false],
+    ["Vérification fermeture chambre froide", false, false],
+  ] },
+  { n: 3, nom: "Contrôle 4h", frequence: "4h", items: [
+    ["Relevé température réfrigérateurs", false, true],
+    ["Vérification hygiène personnelle", false, false],
+  ] },
 ];
 const DECOR = [
   { n: 1, type: "bar", x: 210, y: 20, largeur: 90, hauteur: 30 },
@@ -88,6 +113,28 @@ try {
       [id("c", d.n), RESTAURANT, SALLE, d.type, d.x, d.y, d.largeur, d.hauteur]
     );
   }
+  // Plan HACCP ; les relevés de démo repartent de zéro.
+  await client.query("delete from checklist_entries where restaurant_id = $1", [RESTAURANT]);
+  let numeroItem = 0;
+  for (const c of CHECKLISTS) {
+    await client.query(
+      `insert into checklists (id, restaurant_id, nom, frequence, departement, ordre, actif)
+       values ($1, $2, $3, $4, 'cuisine', $5, true)
+       on conflict (id) do update set nom = excluded.nom, frequence = excluded.frequence, ordre = excluded.ordre, actif = true`,
+      [id("d", c.n), RESTAURANT, c.nom, c.frequence, c.n]
+    );
+    for (const [ordre, [label, photo, valeur]] of c.items.entries()) {
+      numeroItem += 1;
+      await client.query(
+        `insert into checklist_items (id, checklist_id, label, requiert_photo, requiert_valeur, ordre)
+         values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do update set label = excluded.label, requiert_photo = excluded.requiert_photo,
+           requiert_valeur = excluded.requiert_valeur, ordre = excluded.ordre`,
+        [id("1", numeroItem), id("d", c.n), label, photo, valeur, ordre]
+      );
+    }
+  }
+
   // Remise à zéro du service en cours (une démo repart d'une salle vide) et des
   // réservations (le déroulé du dîner part avec elles).
   await client.query("delete from etat_service_tables where restaurant_id = $1", [RESTAURANT]);
@@ -116,7 +163,7 @@ try {
   await client.query("commit");
   console.log(
     `Démo prête : 1 restaurant, 3 départements, 1 salle, ${TABLES.length} tables, ${DECOR.length} éléments de décor, ` +
-      `${CLIENTS.length} clients, ${RESERVATIONS.length} réservations ce soir.`
+      `${CLIENTS.length} clients, ${RESERVATIONS.length} réservations ce soir, ${CHECKLISTS.length} checklists HACCP.`
   );
 } catch (erreur) {
   await client.query("rollback");

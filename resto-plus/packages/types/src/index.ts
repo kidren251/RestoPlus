@@ -181,6 +181,7 @@ export interface ChecklistItem {
 
 export interface Checklist {
   id: string;
+  /** Nom affiché (« Ouverture cuisine ») — colonne `nom` en base. */
   type: string;
   frequence: "ouverture" | "fermeture" | "4h" | "hebdomadaire";
   items: ChecklistItem[];
@@ -193,6 +194,9 @@ export interface ChecklistEntry {
   itemId: string;
   valeur?: string;
   photoUrl?: string;
+  conforme?: boolean;
+  commentaire?: string;
+  /** Heure du relevé sur le téléphone (fait foi, même hors ligne). */
   timestamp: string;
   statut: "en_attente" | "valide" | "en_retard";
   syncStatus: "local" | "synced";
