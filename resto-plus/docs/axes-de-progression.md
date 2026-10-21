@@ -43,7 +43,7 @@ Dernière mise à jour : 21 octobre 2026 (socle de tests de l'API)
 Objectif : les données survivent à un redémarrage, et on se connecte avec de vrais comptes.
 
 ### Persistance Supabase
-- [ ] Créer le projet Supabase (dev) et appliquer les migrations `0001` à `0014` — projet
+- [ ] Créer le projet Supabase (dev) et appliquer les migrations `0001` à `0015` — projet
       `restau-plus.v1-dev` créé (Paris), clés dans `backend/api/.env` ; reste : `yarn workspace @resto-plus/api db:migrate`
 - [x] Vérifier que les migrations passent dans l'ordre sur une base vierge (`db:migrate --a-blanc`) — 21/10/2026, branche `feat/p1-supabase-schema`
 - [ ] Créer une couche d'accès aux données par domaine (`backend/api/src/repositories/`),
@@ -263,6 +263,8 @@ Fondations posées : `packages/types/src/{departements,lieux,pms,etablissement}.
 - [ ] Faire valider par un juriste / DPO les durées de conservation du journal d'audit
 - [ ] Faire valider le périmètre des statistiques anonymisées et agrégées
 - [ ] Registre RGPD (données clients, allergies, réservations) + mentions légales / CGU
+      — commencé le 21/10/2026 : `docs/rgpd.md` (inventaire, durées, points à valider) et
+      migration `0015_rgpd.sql` (consentement allergies, anonymisation, purge nocturne)
 - [ ] Rapports d'activité mensuels pour la direction (à partir des comptes rendus)
 - [ ] Grille de facturation définitive (utilisateurs permanents / pass intérimaires)
 - [ ] Deck de présentation à partir de `docs/arguments-de-vente.md`
