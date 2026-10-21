@@ -57,8 +57,29 @@ Le plan de salle expose l'état courant de chaque table : étape (`entrée`, `pl
 - `chef_rang` : mise à jour du déroulement du dîner et des plats ;
 - `serveur` : consultation et opérations de salle autorisées.
 
-Dans le prototype, ces états sont synchronisés par la file offline et stockés en mémoire
-côté API mock. La diffusion multi-appareils via Supabase Realtime reste l'étape suivante.
+Ces états sont synchronisés par la file offline et stockés en base Supabase (tables
+`tables_salle`, `etat_service_tables`, `reservations`, `service_events`). Les gestes qui
+touchent plusieurs tables (installer des clients, changer de table, addition) sont des
+fonctions SQL exécutées en une transaction (migration `0017`). La diffusion
+multi-appareils via Supabase Realtime reste l'étape suivante.
+
+## Accès aux données : les repositories
+
+L'API ne lit et n'écrit jamais la base directement depuis une route : elle passe par
+`backend/api/src/repositories/`. Chaque domaine a une interface et deux implémentations :
+`*.memoire.ts` (données de démo, utilisées par les tests et quand `backend/api/.env`
+est absent) et `*.supabase.ts` (base réelle). Le choix est automatique
+(`repositories/index.ts`). Les implémentations Supabase filtrent toujours par
+`restaurant_id`, en plus de la route (défense en profondeur : la clé `service_role`
+ignore la RLS).
+
+Branché sur Supabase : salles et tables, réservations et clients, gestes du service,
+checklists HACCP, réglages des droits par établissement. Encore en mémoire dans les
+fichiers de routes : stock, carte et commandes, messagerie, comptes rendus, comptes,
+délégations, journal d'audit (ordre de branchement : `docs/axes-de-progression.md`).
+
+Tests : `yarn workspace @resto-plus/api test` (mémoire, sans serveur) et
+`test:supabase` (base de dev, `tests/supabase/`).
 
 ## Cloisonnement multi-restaurant
 
@@ -143,8 +164,10 @@ Supabase. Suivi détaillé : `docs/axes-de-progression.md`, section « Départem
    créé vient toujours de la session, jamais du corps de la requête.
 4. **Les droits (niveau N0-N3, pôle) viennent de la matrice partagée**
    `packages/types/src/permissions.ts`, appliquée par `requirePermission()`.
-5. **Test obligatoire après toute nouvelle route** : `yarn workspace @resto-plus/api test:isolation`
-   (le restaurant B tente chaque action sur les données du restaurant A).
+5. **Test obligatoire après toute nouvelle route** : l'ajouter à
+   `backend/api/tests/isolation-restaurants.test.ts` (le restaurant B tente chaque action
+   sur les données du restaurant A), puis `yarn workspace @resto-plus/api test` ; pour un
+   domaine branché sur Supabase, ajouter aussi un cas dans `tests/supabase/`.
 
 ⚠️ **Mode démo** (`REQUIRE_AUTH=false`) : les en-têtes `X-Demo-User-*` et
 `X-Demo-Restaurant-Id` sont falsifiables et la console plateforme N4 est ouverte. Ces

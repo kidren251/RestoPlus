@@ -4,3 +4,6 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Fichiers techniques régénérés (état d'installation Yarn, export de build Expo)
+.yarn/install-state.gz
+apps/mobile/.expo-test-export/

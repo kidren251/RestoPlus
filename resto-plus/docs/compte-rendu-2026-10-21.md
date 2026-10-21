@@ -206,6 +206,31 @@ Branches poussées et fusionnées dans `test` (jamais dans `main` sans feu vert)
 `refactor/decoupage-gros-fichiers`, `chore/socle-tests-api`, `feat/p1-supabase-schema`,
 `feat/p1-branchement-salles`, `feat/p1-reservations-clients`, `feat/p1-haccp`, `feat/haccp-plan-seuils`.
 
+## Clôture de session (contrôles faits)
+
+- Git : tout est commité et poussé ; `test` contient toutes les branches de la session ;
+  `main` n'a pas bougé (fusion après les tests sur téléphone).
+- Ménage : `.yarn/install-state.gz` et `apps/mobile/.expo-test-export/` ne sont plus
+  suivis par git (fichiers techniques régénérés, ajoutés au `.gitignore`).
+- Secrets : aucune clé ni mot de passe dans le dépôt ni dans son historique ; les deux
+  `.env` sont ignorés.
+- Typage app + API : OK. Tests : 126 en mémoire, 29 sur la base de dev, tous au vert.
+- Base de dev : 19 migrations appliquées, démo remise à zéro (`db:seed`).
+- L'API démarre en mode Supabase et répond (`/health`, `/reservations`).
+- Documentation à jour : README (commandes, liste des documents, statut),
+  architecture (repositories), comptes de démo, feuille de route, migrations.
+
+## Pour reprendre la prochaine session
+
+1. Relire l'encadré « Ordre de marche » de `docs/axes-de-progression.md`.
+2. `git switch test && git pull` (dernier état complet).
+3. Vérifier que `backend/api/.env` est toujours là (il n'est pas dans git).
+4. `yarn workspace @resto-plus/api test` puis `test:supabase` : tout doit être vert.
+5. Si des tests sur téléphone ont été faits : reporter les problèmes dans
+   `docs/tests-telephone.md` (tableau en bas) et les traiter en premier.
+6. Sinon, attaquer **comptes de l'équipe + Supabase Auth** : je présente d'abord le
+   plan et les choix (sort des 7 comptes de démo, connexion d'un employé, jeton).
+
 ## Prochaine étape recommandée
 
 1. Tester sur téléphone le lot du jour, puis fusionner `test` dans `main`.

@@ -6,7 +6,7 @@ on les coche (`- [x]`). Quand un point est terminé, noter la date et la branche
 
 Légende : 🔴 bloquant pour le pilote · 🟠 important · 🟡 confort / dette technique
 
-Dernière mise à jour : 21 octobre 2026 (socle de tests de l'API)
+Dernière mise à jour : 21 octobre 2026, fin de session (P1 : salle, réservations, HACCP branchés)
 
 > ## 🧭 Ordre de marche — à relire en début de session
 >
@@ -116,10 +116,11 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
 ### Ménage technique
 - [x] Corriger les 2 erreurs TypeScript de `backend/api/src/routes/tables.ts` (l. 30 et 83) — 21/10/2026, branche `chore/socle-tests-api`
 - [ ] `turbo.json` : renommer `pipeline` en `tasks` (Turbo 2)
-- [ ] Retirer `apps/mobile/.expo-test-export/` de git et l'ajouter au `.gitignore`
+- [x] Retirer `apps/mobile/.expo-test-export/` de git et l'ajouter au `.gitignore`
+      (avec `.yarn/install-state.gz`) — 21/10/2026
 - [ ] CORS : limiter les origines autorisées hors mode dev
 - [ ] Retirer les en-têtes `X-Demo-*` de la liste CORS quand l'auth est exigée
-- [ ] Mettre à jour le README (statut, commandes, lien vers ce document)
+- [x] Mettre à jour le README (statut, commandes, lien vers ce document) — 21/10/2026
 - [ ] Validation des corps de requête (schémas Fastify / zod) sur toutes les routes
 - [ ] Limitation de débit globale sur les routes publiques (`/auth/login`,
       `/comptes/activer`, `/invitations/redeem`) qui tienne aux redémarrages

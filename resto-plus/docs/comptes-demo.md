@@ -120,6 +120,11 @@ est refusée avec `403 ACCESS_LEVEL_INSUFFICIENT`.
 Dans l'écran de connexion de l'app, entrer l'`id / login` du compte souhaité comme
 identifiant, et `resto2026` comme mot de passe.
 
-Les comptes créés par la direction et les comptes rendus sont stockés en mémoire
-par l'API de démo : **ils disparaissent au redémarrage du serveur** (tant que
-Supabase n'est pas branché, voir la migration `0010`).
+Le plan de salle, les réservations, les clients et les relevés HACCP sont enregistrés
+dans la base Supabase de dev : ils **survivent** au redémarrage de l'API. Pour repartir
+d'une démo propre : `yarn workspace @resto-plus/api db:seed`.
+
+Les comptes créés par la direction, les comptes rendus, le stock, la carte, la
+messagerie, les délégations et le journal d'audit sont encore en mémoire : **ils
+disparaissent au redémarrage du serveur** (branchement Supabase en cours, voir
+`docs/axes-de-progression.md`).
