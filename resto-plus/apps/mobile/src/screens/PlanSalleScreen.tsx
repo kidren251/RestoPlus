@@ -5,7 +5,6 @@ import type { AccessRole } from "@resto-plus/types";
 import PlanDeSalle from "../components/plan-de-salle/PlanDeSalle";
 import { CustomHeader, headerStyles } from "../navigation/CustomHeader";
 import { usePermissions } from "../hooks/usePermissions";
-import { useSalleStore } from "../store/salleStore";
 import { useSessionStore } from "../store/sessionStore";
 
 const ROLE_LEVEL_LABEL: Record<AccessRole, string> = {
@@ -55,14 +54,9 @@ export function PlanSalleScreen({ onBack, onOpenClient, onOpenConfigurator }: { 
         layoutLocked={layoutLocked}
         canEditService={serviceOpen && allows("service.suivre")}
         canRequestDish={serviceOpen && allows("service.commander")}
+        canInstall={serviceOpen && allows("service.installer")}
         onToggleLayoutLock={() => setLayoutLocked((locked) => !locked)}
         onOpenConfigurator={onOpenConfigurator}
-        onTablePress={(tableId) => {
-          if (role === "chef_rang") {
-            const table = useSalleStore.getState().getTable(tableId);
-            if (table?.statut === "libre") useSalleStore.getState().openTable(tableId);
-          }
-        }}
         onClientPress={onOpenClient}
       />
     </View>

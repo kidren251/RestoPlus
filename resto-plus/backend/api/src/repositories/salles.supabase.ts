@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ElementDecor, FormeTable, Salle, StatutTable, Table, TableServiceState } from "@resto-plus/types";
 import type { InfosTable, SalleResume, SallesRepository } from "./salles";
 import { estUuid, sansErreur } from "./outils";
+import { versEvenement } from "./autres.supabase";
 
 interface LigneSalle {
   id: string;
@@ -82,8 +83,17 @@ export function creerSallesSupabase(db: SupabaseClient): SallesRepository {
         db.from("elements_decor").select().eq("salle_id", salleId).eq("restaurant_id", restaurantId),
         db.from("etat_service_tables").select().eq("restaurant_id", restaurantId),
       ]);
+      const lignesEtat = sansErreur(lignesServices) as LigneService[];
+      // Déroulé du dîner de chaque repas en cours.
+      const reservationIds = lignesEtat.map((l) => l.reservation_id).filter((id): id is string => !!id);
+      const evenements = reservationIds.length
+        ? (sansErreur(await db.from("service_events").select().in("reservation_id", reservationIds).order("occurred_at")) as Parameters<typeof versEvenement>[0][])
+        : [];
       const services = new Map(
-        (sansErreur(lignesServices) as LigneService[]).map((l) => [l.table_id, versService(l)])
+        lignesEtat.map((l) => [
+          l.table_id,
+          { ...versService(l), events: evenements.filter((e) => e.reservation_id === l.reservation_id).map(versEvenement) },
+        ])
       );
 
       return {
@@ -117,6 +127,10 @@ export function creerSallesSupabase(db: SupabaseClient): SallesRepository {
 
     async changerStatut(restaurantId, tableId, statut) {
       sansErreur(await db.from("tables_salle").update({ statut }).eq("id", tableId).eq("restaurant_id", restaurantId));
+      if (statut === "libre") {
+        // Table nettoyée : le repas précédent n'a plus à y être affiché.
+        sansErreur(await db.from("etat_service_tables").delete().eq("table_id", tableId).eq("restaurant_id", restaurantId));
+      }
     },
 
     async deplacer(restaurantId, tableId, x, y) {
@@ -137,16 +151,20 @@ export function creerSallesSupabase(db: SupabaseClient): SallesRepository {
     },
 
     async ecrireService(restaurantId, etat) {
-      // Les identifiants hors uuid (réservation « local-… » créée hors ligne) ne sont pas
-      // encore des lignes en base : on ne les relie pas.
+      // Le lien avec la réservation n'est posé que par les gestes du service (installer,
+      // changer de table) : une mise à jour du repas ne peut ni le retirer ni le changer.
+      const existant = sansErreur(
+        await db.from("etat_service_tables").select("reservation_id, client_id").eq("table_id", etat.tableId).eq("restaurant_id", restaurantId).maybeSingle()
+      ) as { reservation_id: string | null; client_id: string | null } | null;
       const ligne = sansErreur(
         await db
           .from("etat_service_tables")
           .upsert({
             table_id: etat.tableId,
             restaurant_id: restaurantId,
-            reservation_id: etat.reservationId && estUuid(etat.reservationId) ? etat.reservationId : null,
-            client_id: etat.clientId && estUuid(etat.clientId) ? etat.clientId : null,
+            reservation_id: existant?.reservation_id ?? null,
+            // Fiche client : celle envoyée par l'app (uuid), sinon celle déjà liée.
+            client_id: etat.clientId && estUuid(etat.clientId) ? etat.clientId : existant?.client_id ?? null,
             client_nom: etat.clientName ?? etat.client?.nom ?? null,
             course: etat.course,
             dish_status: etat.dishStatus,
@@ -158,18 +176,24 @@ export function creerSallesSupabase(db: SupabaseClient): SallesRepository {
           .select()
           .single()
       ) as LigneService;
+      // Déroulé du dîner : les nouveaux événements (identifiants uuid générés par l'app)
+      // sont ajoutés ; ceux déjà connus sont ignorés.
+      if (ligne.reservation_id && etat.events?.length) {
+        const nouveaux = etat.events.filter((e) => estUuid(e.id)).map((e) => ({
+          id: e.id,
+          reservation_id: ligne.reservation_id,
+          table_id: etat.tableId,
+          restaurant_id: restaurantId,
+          type: e.type,
+          label: e.label,
+          occurred_at: e.occurredAt,
+          note: e.note ?? null,
+        }));
+        if (nouveaux.length) {
+          sansErreur(await db.from("service_events").upsert(nouveaux, { onConflict: "id", ignoreDuplicates: true }));
+        }
+      }
       return versService(ligne);
-    },
-
-    async terminerRepas(restaurantId, tableId) {
-      sansErreur(await db.from("tables_salle").update({ statut: "a_nettoyer" }).eq("id", tableId).eq("restaurant_id", restaurantId));
-      sansErreur(
-        await db
-          .from("etat_service_tables")
-          .update({ allergenes: [], allergenes_signales_at: null })
-          .eq("table_id", tableId)
-          .eq("restaurant_id", restaurantId)
-      );
     },
   };
 }

@@ -7,14 +7,16 @@ import { isServiceLocked, useSessionStore } from "../store/sessionStore";
  * (packages/types/src/permissions.ts). Sert uniquement à masquer ou verrouiller
  * l'interface : c'est l'API qui refuse réellement les actions non autorisées.
  *
- * Utilise le niveau effectif (relevé par une délégation éventuelle) et le pôle du compte.
+ * Utilise le niveau effectif (relevé par une délégation éventuelle), le pôle du compte
+ * et les niveaux réglés par le N4 pour l'établissement.
  */
 export function usePermissions(): (permission: Permission) => boolean {
   const accessRole = useSessionStore((state) => state.effectiveAccessRole);
   const pole = useSessionStore((state) => state.currentUser?.pole);
+  const reglages = useSessionStore((state) => state.reglagesDroits);
   return useCallback(
-    (permission: Permission) => !!accessRole && !!pole && can({ accessRole, pole }, permission),
-    [accessRole, pole]
+    (permission: Permission) => !!accessRole && !!pole && can({ accessRole, pole }, permission, reglages),
+    [accessRole, pole, reglages]
   );
 }
 

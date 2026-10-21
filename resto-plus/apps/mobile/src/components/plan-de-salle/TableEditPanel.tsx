@@ -1,16 +1,20 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Animated, Pressable, TextInput } from "react-native";
+import { View, Text, StyleSheet, Animated, Pressable, TextInput, ScrollView } from "react-native";
 import type { Table, TableServiceState } from "@resto-plus/types";
 import { COLORS, PANEL_WIDTH } from "./couleurs";
 import { panelStyles } from "./panelStyles";
 import { useTableEdition } from "./useTableEdition";
 import { SuiviDiner } from "./SuiviDiner";
 import { CommandeEnCours } from "./CommandeEnCours";
+import { InstallerClients } from "./InstallerClients";
+import { ChangerDeTable } from "./ChangerDeTable";
 
 interface TableEditPanelProps {
   table: Table | undefined;
   serviceState?: TableServiceState;
   canEditService: boolean;
+  /** Installer des clients, changer de table (droit service.installer, réglable par le N4). */
+  canInstall: boolean;
   canEditLayout: boolean;
   canRequestDish: boolean;
   onClientPress?: (tableId: string) => void;
@@ -19,7 +23,7 @@ interface TableEditPanelProps {
 }
 
 /** Panneau latéral d'une table : fiche client, suivi du dîner, nom/capacité (admin), commande. */
-export function TableEditPanel({ table, serviceState, canEditService, canEditLayout, canRequestDish, onClientPress, visible, onClose }: TableEditPanelProps) {
+export function TableEditPanel({ table, serviceState, canEditService, canInstall, canEditLayout, canRequestDish, onClientPress, visible, onClose }: TableEditPanelProps) {
   const translateX = useRef(new Animated.Value(PANEL_WIDTH)).current;
   const edition = useTableEdition(table);
 
@@ -52,6 +56,13 @@ export function TableEditPanel({ table, serviceState, canEditService, canEditLay
           <Text style={styles.panelClose}>✕</Text>
         </Pressable>
       </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      {canInstall && (table.statut === "libre" || table.statut === "reservee") && (
+        <InstallerClients tableId={table.id} capacite={table.capacite} />
+      )}
+
+      {canInstall && table.statut === "occupee" && <ChangerDeTable tableId={table.id} onDeplace={onClose} />}
 
       {onClientPress && (
         <Pressable style={styles.clientButton} onPress={() => onClientPress(table.id)}>
@@ -97,6 +108,7 @@ export function TableEditPanel({ table, serviceState, canEditService, canEditLay
       <View style={panelStyles.panelDivider} />
 
       <CommandeEnCours tableId={table.id} canRequestDish={canRequestDish} />
+      </ScrollView>
     </Animated.View>
   );
 }

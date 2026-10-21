@@ -2248,6 +2248,7 @@ __metadata:
     "@types/react": "npm:~19.2.4"
     expo: "npm:~57.0.21"
     expo-camera: "npm:~57.0.4"
+    expo-crypto: "npm:~57.0.4"
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
     react-native: "npm:0.86.3"
@@ -4224,6 +4225,15 @@ __metadata:
     expo: "*"
     react-native: "*"
   checksum: 863aea3af9487909b273af33def489a529bc6831b8b9ea0af9b4c77e33a1db6f9f67ad0327f03ee54e41b5fe0fe1c40211987251a0d51ab35e57bc9deee019fa
+  languageName: node
+  linkType: hard
+
+"expo-crypto@npm:~57.0.4":
+  version: 57.0.4
+  resolution: "expo-crypto@npm:57.0.4"
+  peerDependencies:
+    expo: "*"
+  checksum: c7d56a792abdabf3015c89c03ce27bb7c5160c1eb338ac4e7886da9ec3404a2515fdb184adf87e86ac32ed08edaec8a14d2c22a2c94331455aa9f45b3973f98a
   languageName: node
   linkType: hard
 

@@ -5,8 +5,8 @@
  */
 
 import { create } from "zustand";
-import type { AccessRole, Delegation, Pole } from "@resto-plus/types";
-import { setDemoIdentity } from "../api/client";
+import type { AccessRole, Delegation, Pole, ReglagesDroits } from "@resto-plus/types";
+import { api, setDemoIdentity } from "../api/client";
 
 export interface CurrentUser {
   id: string;
@@ -34,6 +34,12 @@ interface SessionState {
    */
   serviceUnlocked: boolean;
   setServiceUnlocked: (unlocked: boolean) => void;
+  /**
+   * Niveaux des droits du service réglés par le N4 pour cet établissement (console
+   * plateforme). Chargés à la connexion ; {} = valeurs par défaut. Lus par usePermissions().
+   */
+  reglagesDroits: ReglagesDroits;
+  chargerReglagesDroits: () => Promise<void>;
 }
 
 /** Le verrou de service ne concerne que le directeur, qui n'est pas en salle pendant le service. */
@@ -41,15 +47,26 @@ export function isServiceLocked(user: CurrentUser | null, serviceUnlocked: boole
   return user?.accessRole === "directeur_admin" && !serviceUnlocked;
 }
 
-export const useSessionStore = create<SessionState>((set) => ({
+export const useSessionStore = create<SessionState>((set, get) => ({
   currentUser: null,
   effectiveAccessRole: null,
   delegation: undefined,
   serviceUnlocked: false,
+  reglagesDroits: {},
+  chargerReglagesDroits: async () => {
+    try {
+      const { reglages } = await api.get<{ reglages: ReglagesDroits }>("/restaurant/reglages-droits");
+      set({ reglagesDroits: reglages });
+    } catch {
+      // Hors ligne : on garde les derniers réglages connus (l'API reste seule juge).
+    }
+  },
   setServiceUnlocked: (unlocked) => set({ serviceUnlocked: unlocked }),
   setDroits: (accessRole, delegation) => set({ effectiveAccessRole: accessRole, delegation }),
   setCurrentUser: (user) => {
     set({ currentUser: user, effectiveAccessRole: user?.accessRole ?? null, delegation: undefined, serviceUnlocked: false });
     setDemoIdentity(user ? { id: user.id, nom: user.nom, accessRole: user.accessRole, pole: user.pole } : null);
+    if (user) void get().chargerReglagesDroits();
+    else set({ reglagesDroits: {} });
   },
 }));

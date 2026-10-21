@@ -120,7 +120,7 @@ export interface ServiceEvent {
   id: string;
   reservationId: string;
   tableId: string;
-  type: "arrivee" | "installation" | "entree_servie" | "plat_servi" | "dessert_servi" | "addition" | "depart" | "note";
+  type: "arrivee" | "installation" | "changement_table" | "entree_servie" | "plat_servi" | "dessert_servi" | "addition" | "depart" | "note";
   label: string;
   occurredAt: string;
   actorId?: string;
@@ -151,13 +151,18 @@ export interface Salle {
 export interface Reservation {
   id: string;
   restaurantId?: string;
-  tableId: string;
+  /** Table prévue (facultative : elle peut être attribuée à l'arrivée du client). */
+  tableId?: string;
+  /** Journée de service (AAAA-MM-JJ) ; `heure` est l'heure locale « HH:MM ». */
+  date?: string;
   clientId?: string;
   nomClient: string;
   couverts: number;
   heure: string;
   /** Allergies pour ce repas, signalées par le client ; effacées à la fin du repas. */
   allergenes: string[];
+  /** Heure à laquelle le client les a signalées (son consentement). */
+  allergenesSignalesAt?: string;
   notes?: string;
   source?: "telephone" | "site" | "email" | "walk_in" | "conciergerie";
   createdAt?: string;

@@ -1,49 +1,22 @@
-import type { Salle, StatutTable, TableServiceState } from "@resto-plus/types";
-import { DEMO_RESTAURANT_ID } from "../tenant";
+import type { StatutTable } from "@resto-plus/types";
+import type { EtatMemoire } from "./memoire";
 import type { InfosTable, SalleResume, SallesRepository } from "./salles";
 
-// Données de démo (mêmes identifiants que l'app hors ligne : salle-1, t1…t6).
-const SALLES_DEMO: Salle[] = [
-  {
-    id: "salle-1",
-    restaurantId: DEMO_RESTAURANT_ID,
-    nom: "Salle Principale",
-    largeurCanvas: 320,
-    hauteurCanvas: 400,
-    tables: [
-      { id: "t1", nom: "Table 1", x: 20, y: 30, largeur: 60, hauteur: 60, rotation: 0, forme: "ronde", capacite: 2, zoneId: "z1", statut: "libre" },
-      { id: "t2", nom: "Table 2", x: 110, y: 30, largeur: 70, hauteur: 50, rotation: 0, forme: "rectangle", capacite: 4, zoneId: "z1", statut: "libre" },
-      { id: "t3", nom: "Table 3", x: 20, y: 130, largeur: 70, hauteur: 50, rotation: 0, forme: "carree", capacite: 4, zoneId: "z1", statut: "libre" },
-      { id: "t4", nom: "Table 4", x: 120, y: 130, largeur: 60, hauteur: 60, rotation: 0, forme: "ronde", capacite: 6, zoneId: "z2", statut: "libre" },
-      { id: "t5", nom: "Table 5", x: 20, y: 230, largeur: 80, hauteur: 60, rotation: 0, forme: "rectangle", capacite: 8, zoneId: "z2", statut: "libre" },
-      { id: "t6", nom: "Table 6", x: 140, y: 230, largeur: 60, hauteur: 50, rotation: 15, forme: "carree", capacite: 4, zoneId: "z2", statut: "libre" },
-    ],
-    decor: [
-      { id: "d1", type: "bar", x: 210, y: 20, largeur: 90, hauteur: 30, rotation: 0 },
-      { id: "d2", type: "entree", x: 0, y: 350, largeur: 60, hauteur: 20, rotation: 0 },
-      { id: "d3", type: "cuisine", x: 210, y: 300, largeur: 90, hauteur: 90, rotation: 0 },
-    ],
-  },
-];
-
-export function creerSallesMemoire(): SallesRepository {
-  const salles: Salle[] = structuredClone(SALLES_DEMO);
-  const services: Record<string, TableServiceState> = {};
-
+export function creerSallesMemoire(etat: EtatMemoire): SallesRepository {
   const trouverTable = (restaurantId: string, tableId: string) =>
-    salles.find((s) => s.restaurantId === restaurantId)?.tables.find((t) => t.id === tableId);
+    etat.salles.filter((s) => s.restaurantId === restaurantId).flatMap((s) => s.tables).find((t) => t.id === tableId);
 
   return {
     async lister(restaurantId) {
-      return salles
+      return etat.salles
         .filter((s) => s.restaurantId === restaurantId)
         .map(({ tables: _tables, decor: _decor, ...resume }): SalleResume => resume);
     },
 
     async lire(restaurantId, salleId) {
-      const salle = salles.find((s) => s.id === salleId && s.restaurantId === restaurantId);
+      const salle = etat.salles.find((s) => s.id === salleId && s.restaurantId === restaurantId);
       if (!salle) return null;
-      return { ...salle, tables: salle.tables.map((t) => ({ ...t, serviceState: services[t.id] })) };
+      return { ...salle, tables: salle.tables.map((t) => ({ ...t, serviceState: etat.services[t.id] })) };
     },
 
     async tableExiste(restaurantId, tableId) {
@@ -52,7 +25,9 @@ export function creerSallesMemoire(): SallesRepository {
 
     async changerStatut(restaurantId, tableId, statut: StatutTable) {
       const table = trouverTable(restaurantId, tableId);
-      if (table) table.statut = statut;
+      if (!table) return;
+      table.statut = statut;
+      if (statut === "libre") delete etat.services[tableId];
     },
 
     async deplacer(restaurantId, tableId, x, y) {
@@ -68,19 +43,18 @@ export function creerSallesMemoire(): SallesRepository {
       return { nom: table.nom, capacite: table.capacite };
     },
 
-    async ecrireService(_restaurantId, etat) {
-      services[etat.tableId] = etat;
-      return etat;
-    },
-
-    async terminerRepas(restaurantId, tableId) {
-      const table = trouverTable(restaurantId, tableId);
-      if (table) table.statut = "a_nettoyer";
-      const service = services[tableId];
-      if (service) {
-        delete service.allergenes;
-        delete service.allergenesSignalesAt;
+    async ecrireService(restaurantId, recu) {
+      // Le lien avec la réservation n'est posé que par les gestes du service (installer,
+      // changer de table) : une mise à jour du repas ne peut ni le retirer ni le changer.
+      const service = { ...recu, reservationId: etat.services[recu.tableId]?.reservationId };
+      etat.services[service.tableId] = service;
+      // Déroulé du dîner rattaché à la réservation (comme service_events en base).
+      const resa = etat.reservations.find((r) => r.id === service.reservationId && r.restaurantId === restaurantId);
+      if (resa && service.events) {
+        const connus = new Set((resa.serviceEvents ?? []).map((e) => e.id));
+        resa.serviceEvents = [...(resa.serviceEvents ?? []), ...service.events.filter((e) => !connus.has(e.id))];
       }
+      return service;
     },
   };
 }

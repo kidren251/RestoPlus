@@ -45,6 +45,7 @@ export type AuditAction =
   | "compte.messagerie"
   | "delegation.creee"
   | "delegation.revoquee"
+  | "droits.reglages_modifies"
   | "invitation.creee"
   | "invitation.utilisee"
   // Sécurité
@@ -70,6 +71,7 @@ export const CATEGORIE_ACTION: Record<AuditAction, AuditCategorie> = {
   "compte.messagerie": "administration",
   "delegation.creee": "administration",
   "delegation.revoquee": "administration",
+  "droits.reglages_modifies": "administration",
   "invitation.creee": "administration",
   "invitation.utilisee": "administration",
   "connexion.reussie": "securite",

@@ -76,8 +76,8 @@ Technique (pendant le branchement Supabase, P1) :
       `auth.admin.deleteUser(id, true)`
 - [x] App : allergies « pour ce repas » + case « signalées par le client » sur l'écran
       de la table, effacées à l'addition (21/10/2026)
-- [ ] Formulaire de réservation : saisir les allergies signalées à la réservation
-      (même case de consentement)
+- [x] Formulaire de réservation : saisir les allergies signalées à la réservation
+      (même case de consentement) — 21/10/2026
 - [ ] Export des données d'une personne (droit d'accès et de portabilité)
 - [ ] Réglage des durées de conservation dans la console N3 / N4
 

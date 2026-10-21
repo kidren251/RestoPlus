@@ -53,8 +53,10 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
       tests d'intégration à part : `yarn workspace @resto-plus/api test:supabase`
 - [ ] Brancher les routes une par une sur cette couche :
   - [x] salles / tables / état des tables (migration `0016`, 11 tests d'intégration) — 21/10/2026, branche `feat/p1-branchement-salles`
-        — reste : événements du dîner (`service_events` exige une réservation) non persistés
-  - [ ] clients / réservations
+        — déroulé du dîner : réglé avec le branchement des réservations
+  - [x] clients / réservations (migration `0017`, 22 tests d'intégration) — 21/10/2026, branche `feat/p1-reservations-clients`
+        — avec installation des clients en un geste (walk-in « sans résa », client qui
+        change de table) et déroulé du dîner enregistré en base
   - [ ] checklists HACCP
   - [ ] stock (articles, mouvements, alertes)
   - [ ] carte / commandes / additions
@@ -233,6 +235,9 @@ Fondations posées : `packages/types/src/{departements,lieux,pms,etablissement}.
 - [ ] Faire valider la minimisation des données clients (RGPD)
 
 ### Console N4 — mise en place d'un établissement avant livraison
+- [x] Droits du service réglables par établissement (niveau minimum de 7 droits : installer,
+      commander, suivre le dîner, addition, fiche client, réservations, tâches) ; pôles et
+      droits sensibles fixes ; modification journalisée — 21/10/2026, branche `feat/p1-reservations-clients`
 - [x] Type `ConfigurationEtablissement` : type d'établissement, départements, lieux, PMS,
       fuseau, heure de bascule, options (`etablissement.ts`)
 - [x] Option N4 `multiDepartements` (défaut : non) + fonction `modulesActifs()`

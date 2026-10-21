@@ -25,10 +25,10 @@ export interface SallesRepository {
   /** Salle complète : tables (avec le repas en cours) et décor. */
   lire(restaurantId: string, salleId: string): Promise<Salle | null>;
   tableExiste(restaurantId: string, tableId: string): Promise<boolean>;
+  /** Une table remise « libre » (nettoyée) perd son repas précédent. */
   changerStatut(restaurantId: string, tableId: string, statut: StatutTable): Promise<void>;
   deplacer(restaurantId: string, tableId: string, x: number, y: number): Promise<void>;
   modifierInfos(restaurantId: string, tableId: string, infos: InfosTable): Promise<InfosTable>;
+  /** Met à jour le repas en cours (étape, plats, allergies) et enregistre son déroulé. */
   ecrireService(restaurantId: string, etat: TableServiceState): Promise<TableServiceState>;
-  /** Addition envoyée : table à nettoyer, allergies du repas effacées. */
-  terminerRepas(restaurantId: string, tableId: string): Promise<void>;
 }
