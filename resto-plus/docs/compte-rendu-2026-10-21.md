@@ -144,6 +144,12 @@ Ce travail était resté non commité : il l'a été en début de session.
   ne peut pas être modifié, même directement en base.
 - L'app retrouve au démarrage les relevés du jour (avant : perdus à chaque relance) ;
   un relevé renvoyé deux fois par la file hors ligne n'est gardé qu'une fois.
+- Décision : un point validé ne se décoche plus ; **« Refaire le relevé »** ajoute un
+  nouveau relevé, l'ancien reste dans l'historique (« 2 relevés aujourd'hui »).
+- Le contenu du plan HACCP de démo vient du prototype : **il n'est pas conforme** (points
+  manquants : réception, refroidissement, remise en température, maintien au chaud,
+  huiles, traçabilité, nettoyage, nuisibles). À réécrire sur la base du GBPH du
+  restaurateur et à faire valider par un professionnel de l'hygiène.
 
 ### Documents
 
@@ -165,8 +171,8 @@ Ce travail était resté non commité : il l'a été en début de session.
 
 - En base : plan de salle, réservations, clients, HACCP. Stock, carte, messagerie,
   comptes rendus, comptes, délégations et audit restent en mémoire.
-- HACCP : « décocher » un point n'efface que l'affichage local ; le relevé envoyé fait
-  foi et revient à la relance. Le plan HACCP ne se modifie pas encore depuis l'app.
+- HACCP : le plan ne se modifie pas encore depuis l'app ; son contenu de démo n'est
+  pas conforme (voir plus haut).
 - Installer un client hors ligne ouvre la table sur le téléphone sans réservation (pas
   de rattachement automatique au retour du réseau).
 - L'écran Réservations n'a plus de liste de démo intégrée : sans API joignable, il est vide.

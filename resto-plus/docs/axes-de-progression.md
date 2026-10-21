@@ -178,6 +178,18 @@ contient 2 écrans → les séparer).
 
 ---
 
+## HACCP — contenu du plan 🟠
+- [ ] Réécrire le plan HACCP de démo sur la base du GBPH du restaurateur (réception,
+      froid positif / négatif, refroidissement rapide, remise en température, maintien
+      au chaud, huiles, traçabilité, nettoyage, nuisibles)
+- [ ] Le faire relire par un professionnel de l'hygiène
+- [ ] Écran d'édition du plan HACCP (N2 cuisine ou technicien) : checklists, points,
+      fréquences, seuils
+- [ ] Seuils par point (ex. froid positif ≤ +4 °C) : relevé hors seuil signalé en rouge
+      et non conforme automatiquement
+
+---
+
 ## Départements hôteliers (maintenance, espaces verts, gouvernance) 🟠
 
 Objectif : équiper tous les services d'un hôtel. Modèle validé le 11/10/2026 :
