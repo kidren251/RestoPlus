@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import type { StockItem, UniteStock } from "@resto-plus/types";
 import { useStockStore } from "../store/stockStore";
+import { usePermissions } from "../hooks/usePermissions";
 
 const UNITES: UniteStock[] = ["kg", "g", "l", "ml", "unite"];
 
@@ -12,13 +13,8 @@ function statutArticle(item: StockItem): { label: string; color: string } {
   return { label: "OK", color: colors.statusFree };
 }
 
-export function StockScreen({
-  canAdjust,
-  onOpenItem,
-}: {
-  canAdjust: boolean;
-  onOpenItem: (itemId: string) => void;
-}) {
+export function StockScreen({ onOpenItem }: { onOpenItem: (itemId: string) => void }) {
+  const canCreate = usePermissions()("stock.entree");
   const items = useStockStore((state) => state.items);
   const alertesNonLues = useStockStore((state) => state.getAlertesNonLues());
   const loadStock = useStockStore((state) => state.loadStock);
@@ -94,7 +90,7 @@ export function StockScreen({
         })}
       </View>
 
-      {canAdjust && (
+      {canCreate && (
         <>
           {showForm ? (
             <View style={styles.form}>

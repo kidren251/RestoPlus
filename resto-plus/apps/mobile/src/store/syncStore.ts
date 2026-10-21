@@ -12,7 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import { SyncEngine } from "@resto-plus/sync-engine";
 import type { QueuedAction } from "@resto-plus/sync-engine";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 
 interface SyncState {
   isOnline: boolean;
@@ -21,6 +21,9 @@ interface SyncState {
   /** À appeler une seule fois au démarrage dans App.tsx */
   init: () => Promise<void>;
 }
+
+// Refus que le serveur maintiendra quoi qu'il arrive : inutile de réessayer.
+const PERMANENT_HTTP_STATUSES = [400, 403, 404, 409, 422];
 
 const sendAction = async (action: QueuedAction): Promise<void> => {
   switch (action.type) {
@@ -64,10 +67,16 @@ const sendAction = async (action: QueuedAction): Promise<void> => {
       await api.post("/checklist-entries", action.payload);
       break;
     case "message_send":
-      await api.post("/messages", action.payload);
+      await api.post(`/conversations/${(action.payload as { conversationId: string }).conversationId}/messages`, action.payload);
       break;
     case "stock_item_create":
       await api.post("/stock-items", action.payload);
+      break;
+    case "menu_item_create":
+      await api.post("/menu-items", action.payload);
+      break;
+    case "menu_order":
+      await api.post(`/menu-items/${(action.payload as { menuItemId: string }).menuItemId}/order`, action.payload);
       break;
     case "stock_movement":
       await api.post(`/stock-items/${(action.payload as { stockItemId: string }).stockItemId}/movements`, action.payload);
@@ -87,6 +96,10 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       baseRetryIntervalMs: 5_000,
       maxAttempts: 5,
       onPendingCountChange: (count) => set({ pendingCount: count }),
+      isPermanentError: (error) => error instanceof ApiError && PERMANENT_HTTP_STATUSES.includes(error.status),
+      onRejected: (action, error) => {
+        console.warn(`Action "${action.type}" refusée par le serveur, retirée de la file :`, error instanceof Error ? error.message : error);
+      },
     });
 
     await engine.hydrate();

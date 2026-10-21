@@ -58,6 +58,15 @@ export async function platformRoutes(app: FastifyInstance) {
   });
 }
 
+// ╔════════════════════════════════════════════════════════════════════════════════╗
+// ║  ⚠️⚠️⚠️  SÉCURITÉ ABAISSÉE POUR LA DÉMO  ⚠️⚠️⚠️                                    ║
+// ║  En mode mock hors production (pas de Supabase), la console plateforme N4 est  ║
+// ║  ouverte à TOUT appelant de l'API, sans aucune vérification d'identité : c'est  ║
+// ║  ce qui permet de la tester depuis Expo Go. Côté app, elle n'est affichée qu'au ║
+// ║  N3 (voir AppNavigator), mais l'API, elle, ne filtre rien dans ce mode.         ║
+// ║  En production ou dès que Supabase est branché, seul platform_role=dev_creator  ║
+// ║  (app_metadata Supabase) y a accès.                                             ║
+// ╚════════════════════════════════════════════════════════════════════════════════╝
 function canManagePlatform(request: FastifyRequest, reply: FastifyReply): boolean {
   const isDevelopmentMock = isMockMode && process.env.NODE_ENV !== "production";
   if (isDevelopmentMock || request.auth?.platformRole === "dev_creator") return true;

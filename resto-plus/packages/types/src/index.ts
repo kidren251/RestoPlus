@@ -191,6 +191,12 @@ export interface ChecklistEntry {
 
 export type UniteStock = "kg" | "g" | "l" | "ml" | "unite";
 export type StockMovementType = "reception" | "sortie" | "perte" | "ajustement";
+/**
+ * Une réception est confirmée immédiatement. Toute baisse (sortie, perte, ajustement,
+ * commande) reste "provisoire" jusqu'à la validation du compte rendu cuisine par le
+ * chef de cuisine (N2), qui peut aussi l'annuler.
+ */
+export type StockMovementStatut = "provisoire" | "confirme" | "annule";
 
 export interface StockItem {
   id: string;
@@ -198,7 +204,8 @@ export interface StockItem {
   nom: string;
   categorie?: string;
   unite: UniteStock;
-  quantiteActuelle: number;
+  quantiteActuelle: number; // stock théorique, mouvements provisoires inclus
+  quantiteConfirmee?: number; // stock comptable : seuls les mouvements confirmés
   seuilAlerte: number;
   prixAchat?: number; // coût unitaire (par unité de `unite`) — base de l'équation prix/marge
   updatedAt: string;
@@ -211,6 +218,8 @@ export interface StockMovement {
   type: StockMovementType;
   quantite: number; // toujours positive, le type détermine le sens
   quantiteApres: number;
+  delta?: number; // variation signée appliquée au stock (quantiteApres - quantité avant)
+  statut?: StockMovementStatut;
   motif?: string;
   userId?: string;
   timestamp: string;
@@ -245,12 +254,190 @@ export interface MenuItem {
   ingredients: MenuItemIngredient[];
 }
 
-// --- Messagerie ciblée ---
+// --- Messagerie ---
+//
+// Trois espaces distincts, pas un chat unique :
+// - "annonce" : tableau d'affichage de l'établissement (lecture par tous, écriture
+//   réservée à N2/N3 — pas un fil de discussion, pas de réponses).
+// - "canal" : discussion multi-sens au sein d'un pôle (salle ou cuisine),
+//   configurable par le N3 de l'établissement.
+// - "dm" : message direct, limité à la ligne hiérarchique directe (voir
+//   docs/architecture.md) — jamais entre deux membres du même niveau.
 
-export interface Message {
+export type ConversationType = "annonce" | "canal" | "dm";
+
+export interface Conversation {
   id: string;
+  restaurantId?: string;
+  type: ConversationType;
+  nom?: string; // "annonce" et "canal" uniquement
+  pole?: Pole; // "canal" scopé à un pôle uniquement
+  participantIds?: string[]; // "dm" uniquement (exactement 2)
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  restaurantId?: string;
   emetteurId: string;
-  stratesCibles: Role[];
+  emetteurNom: string;
+  emetteurAccessRole: AccessRole; // priorisation visuelle N3 > N2 sur le tableau d'affichage
   contenu: string;
   timestamp: string;
 }
+
+// --- Comptes rendus de service (fin de journée, validés par le N2 du pôle) ---
+
+export type PoleService = "salle" | "cuisine";
+
+export interface CompteRenduPlat {
+  nom: string;
+  quantite: number;
+  chiffreAffaires: number;
+}
+
+export interface CompteRenduLigneStock {
+  movementId: string;
+  stockItemId: string;
+  stockItemNom: string;
+  unite: UniteStock;
+  type: StockMovementType;
+  quantite: number;
+  delta: number;
+  coutEstime?: number;
+  motif?: string;
+  timestamp: string;
+  /** Journée de service de la sortie (voir serviceDay.ts). */
+  jourService: string;
+  statut: StockMovementStatut;
+}
+
+export interface CompteRenduService {
+  id: string;
+  restaurantId?: string;
+  pole: PoleService;
+  /** Journée de service (AAAA-MM-JJ) : bascule à l'heure de fin de service, pas à minuit. */
+  date: string;
+  /** Heure locale de bascule vers la journée suivante (ex. 5 = 5h du matin). */
+  heureBascule?: number;
+  statut: "brouillon" | "valide";
+  /** Début de la période couverte : validation précédente du même pôle. */
+  periodeDebut?: string;
+  genereAt: string;
+  valideAt?: string;
+  valideParId?: string;
+  valideParNom?: string;
+  /** Validé par un N1 à qui la direction a délégué les responsabilités du N2. */
+  valideParDelegation?: boolean;
+  observations?: string;
+  plats: CompteRenduPlat[];
+  chiffreAffairesEstime: number;
+  // Salle
+  nbReservations?: number;
+  totalCouverts?: number;
+  nbAdditions?: number;
+  // Cuisine
+  mouvementsStock?: CompteRenduLigneStock[];
+  coutMatiereEstime?: number;
+  valeurPertes?: number;
+}
+
+// --- Comptes équipe permanents (créés par le N3, activés par code) ---
+
+export type CompteEquipeStatut = "en_attente_activation" | "actif" | "desactive";
+
+/**
+ * Membre de l'annuaire du restaurant. Création par le N3 limitée à N0-N2 en salle
+ * ou en cuisine ; l'annuaire contient aussi la direction (et, en démo, les 7 comptes
+ * de test) pour la messagerie et les délégations.
+ */
+export interface CompteEquipe {
+  id: string;
+  restaurantId?: string;
+  nom: string;
+  accessRole: AccessRole;
+  pole: Pole;
+  statut: CompteEquipeStatut;
+  /** Accès à la messagerie, réglé par le N3. */
+  messagerie: boolean;
+  /** Compte de démonstration (connexion locale, voir docs/comptes-demo.md). */
+  demo?: boolean;
+  login?: string;
+  createdAt: string;
+  activationExpiresAt?: string;
+}
+
+/** Destinataire proposé en message direct (hiérarchie et accès messagerie déjà filtrés). */
+export interface Destinataire {
+  id: string;
+  nom: string;
+  accessRole: AccessRole;
+  pole: Pole;
+}
+
+/**
+ * Délégation des tâches : le N3 confie temporairement à un N1 (ex. sous-chef de
+ * cuisine) les responsabilités du N2 de son pôle — compte rendu, sorties de stock…
+ */
+export interface Delegation {
+  id: string;
+  restaurantId?: string;
+  delegueId: string;
+  delegueNom: string;
+  pole: PoleService;
+  debut: string;
+  /** Fin de la délégation : à l'heure de fin de service du dernier jour. */
+  fin: string;
+  creeParNom?: string;
+  revoqueeAt?: string;
+}
+
+/** Droits effectifs de la session : le niveau peut être relevé par une délégation active. */
+export interface DroitsSession {
+  accessRole: AccessRole;
+  delegation?: Delegation;
+}
+
+/** Base de la facturation par utilisateur (voir la gestion des comptes, N3). */
+export interface ResumeUtilisateurs {
+  permanentsActifs: number;
+  enAttenteActivation: number;
+  interimairesActifs: number;
+}
+
+/** Validation d'un pôle pour une journée de service. */
+export interface ValidationPole {
+  valideAt: string;
+  valideParNom?: string;
+  valideParDelegation?: boolean;
+}
+
+/**
+ * Journée de service et sa clôture : elle est close quand les comptes rendus salle ET
+ * cuisine sont validés (sinon, la bascule du petit matin sert de filet de sécurité).
+ */
+export interface JourneeService {
+  date: string;
+  salle?: ValidationPole;
+  cuisine?: ValidationPole;
+  cloturee: boolean;
+  clotureAt?: string;
+}
+
+/** Identité renvoyée par la connexion ou l'activation d'un compte. */
+export interface IdentiteConnexion {
+  id: string;
+  nom: string;
+  accessRole: AccessRole;
+  pole: Pole;
+  restaurantId?: string;
+}
+
+export * from "./permissions";
+export * from "./serviceDay";
+export * from "./audit";
+export * from "./departements";
+export * from "./lieux";
+export * from "./pms";
+export * from "./etablissement";

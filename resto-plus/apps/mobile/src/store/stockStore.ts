@@ -8,7 +8,7 @@
 
 import { create } from "zustand";
 import type { StockAlert, StockItem, StockMovement, StockMovementType, UniteStock } from "@resto-plus/types";
-import { api } from "../api/client";
+import { api, messageErreur } from "../api/client";
 import { enqueueSync } from "./syncStore";
 
 // Données mockées (Phase 1 sans Supabase / mode hors ligne).
@@ -59,7 +59,13 @@ interface StockState {
   loadHistorique: (itemId: string) => Promise<void>;
   loadAlertes: () => Promise<void>;
   ajouterArticle: (nom: string, unite: UniteStock, seuilAlerte: number, categorie?: string, prixAchat?: number) => void;
-  enregistrerMouvement: (itemId: string, type: StockMovementType, quantite: number, motif?: string) => void;
+  /**
+   * `sync: false` : reflet local d'un mouvement que le serveur applique lui-même
+   * (ex. sortie de stock déclenchée par une commande, voir menuStore.commanderPlat).
+   */
+  enregistrerMouvement: (itemId: string, type: StockMovementType, quantite: number, motif?: string, options?: { sync?: boolean }) => void;
+  /** Retire un article (N2). Nécessite le réseau : renvoie un message d'erreur sinon. */
+  supprimerArticle: (itemId: string) => Promise<string | null>;
   marquerAlerteLue: (alertId: string) => void;
   getArticlesEnAlerte: () => StockItem[];
   getAlertesNonLues: () => StockAlert[];
@@ -123,12 +129,15 @@ export const useStockStore = create<StockState>((set, get) => ({
     enqueueSync("stock_item_create", { nom, categorie, unite, seuilAlerte, prixAchat });
   },
 
-  enregistrerMouvement: (itemId, type, quantite, motif) => {
+  enregistrerMouvement: (itemId, type, quantite, motif, options) => {
     const item = get().items.find((candidate) => candidate.id === itemId);
     if (!item) return;
 
     const quantiteAvant = item.quantiteActuelle;
     const quantiteApres = computeQuantiteApres(item, type, quantite);
+    const delta = quantiteApres - quantiteAvant;
+    // Même règle que l'API : une baisse reste provisoire jusqu'au compte rendu cuisine.
+    const statut = type === "reception" || delta >= 0 ? "confirme" : "provisoire";
     const timestamp = new Date().toISOString();
     const movement: StockMovement = {
       id: `mvt_${Date.now()}_${_localIdCounter++}`,
@@ -136,6 +145,8 @@ export const useStockStore = create<StockState>((set, get) => ({
       type,
       quantite,
       quantiteApres,
+      delta,
+      statut,
       motif,
       userId: "current-user", // sera remplacé par l'auth Supabase
       timestamp,
@@ -163,7 +174,14 @@ export const useStockStore = create<StockState>((set, get) => ({
 
     set((state) => ({
       items: state.items.map((candidate) =>
-        candidate.id === itemId ? { ...candidate, quantiteActuelle: quantiteApres, updatedAt: timestamp } : candidate
+        candidate.id === itemId
+          ? {
+              ...candidate,
+              quantiteActuelle: quantiteApres,
+              quantiteConfirmee: statut === "confirme" ? (candidate.quantiteConfirmee ?? quantiteAvant) + delta : candidate.quantiteConfirmee ?? quantiteAvant,
+              updatedAt: timestamp,
+            }
+          : candidate
       ),
       movementsByItem: {
         ...state.movementsByItem,
@@ -172,7 +190,17 @@ export const useStockStore = create<StockState>((set, get) => ({
       alerts: alert ? [alert, ...state.alerts] : state.alerts,
     }));
 
-    enqueueSync("stock_movement", { stockItemId: itemId, type, quantite, motif });
+    if (options?.sync !== false) enqueueSync("stock_movement", { stockItemId: itemId, type, quantite, motif });
+  },
+
+  supprimerArticle: async (itemId) => {
+    try {
+      await api.delete(`/stock-items/${itemId}`);
+      set((state) => ({ items: state.items.filter((item) => item.id !== itemId) }));
+      return null;
+    } catch (error) {
+      return messageErreur(error);
+    }
   },
 
   marquerAlerteLue: (alertId) => {

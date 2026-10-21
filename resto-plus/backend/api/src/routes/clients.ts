@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import { requirePermission } from "../permissions";
+import { appartient, DEMO_RESTAURANT_ID, duRestaurant, restaurantDe } from "../tenant";
 
 const MOCK_CLIENTS = [
   {
@@ -21,21 +23,27 @@ const MOCK_CLIENTS = [
   },
 ];
 
-const clients = [...MOCK_CLIENTS];
+const clients: ((typeof MOCK_CLIENTS)[number] & { restaurantId: string })[] = MOCK_CLIENTS.map((client) => ({ ...client, restaurantId: DEMO_RESTAURANT_ID }));
 
 export async function clientsRoutes(app: FastifyInstance) {
-  app.get("/clients", async () => clients);
+  app.get("/clients", async (req) => duRestaurant(clients, req));
 
   app.get<{ Params: { id: string } }>("/clients/:id", async (req, reply) => {
     const client = clients.find((candidate) => candidate.id === req.params.id);
-    if (!client) return reply.status(404).send({ error: "Client introuvable" });
+    if (!client || !appartient(client, req)) return reply.status(404).send({ error: "Client introuvable" });
     return client;
   });
 
-  app.post<{ Body: (typeof MOCK_CLIENTS)[number] }>("/clients", async (req) => {
-    const existingIndex = clients.findIndex((client) => client.id === req.body.id);
-    if (existingIndex >= 0) clients[existingIndex] = req.body;
-    else clients.push(req.body);
-    return req.body;
+  app.post<{ Body: (typeof MOCK_CLIENTS)[number] }>("/clients", { preHandler: requirePermission("client.editer") }, async (req, reply) => {
+    // Le restaurant vient toujours de la session, jamais du corps de la requête.
+    const client = { ...req.body, restaurantId: restaurantDe(req) };
+    const existingIndex = clients.findIndex((candidate) => candidate.id === req.body.id);
+    if (existingIndex >= 0) {
+      if (!appartient(clients[existingIndex], req)) return reply.status(404).send({ error: "Client introuvable" });
+      clients[existingIndex] = client;
+    } else {
+      clients.push(client);
+    }
+    return client;
   });
 }

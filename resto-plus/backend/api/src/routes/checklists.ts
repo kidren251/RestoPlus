@@ -1,4 +1,7 @@
 import type { FastifyInstance } from "fastify";
+import { requirePermission } from "../permissions";
+import { journaliser } from "../audit";
+import { duRestaurant, restaurantDe } from "../tenant";
 
 // Données mockées — Phase 1
 const MOCK_CHECKLISTS = [
@@ -46,18 +49,26 @@ export async function checklistsRoutes(app: FastifyInstance) {
   });
 
   // POST /checklist-entries
-  app.post<{ Body: Record<string, unknown> }>("/checklist-entries", async (req, reply) => {
+  app.post<{ Body: Record<string, unknown> }>("/checklist-entries", { preHandler: requirePermission("checklist.remplir") }, async (req, reply) => {
     const entry = {
       id: `entry_${Date.now()}`,
       ...req.body,
+      restaurantId: restaurantDe(req),
       receivedAt: new Date().toISOString(),
     };
     entries.push(entry);
+    // Relevé sanitaire tel que reçu : il fait foi lors d'un contrôle.
+    const releve = req.body as Record<string, unknown>;
+    const texte = (cle: string) => (typeof releve[cle] === "string" || typeof releve[cle] === "number" || typeof releve[cle] === "boolean" ? (releve[cle] as string | number | boolean) : null);
+    journaliser(req, "haccp.checklist", {
+      cible: { type: "checklist", id: String(texte("checklistId") ?? texte("itemId") ?? entry.id) },
+      details: { entreeId: entry.id, valeur: texte("valeur") ?? texte("temperature"), conforme: texte("conforme"), commentaire: texte("commentaire") },
+    });
     return reply.status(201).send(entry);
   });
 
   // GET /checklist-entries — debug uniquement
-  app.get("/checklist-entries", async () => {
-    return entries;
+  app.get("/checklist-entries", async (req) => {
+    return duRestaurant(entries as { restaurantId?: string }[], req);
   });
 }

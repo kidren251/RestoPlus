@@ -34,3 +34,20 @@ export function findDemoAccount(login: string): DemoAccount | undefined {
   const needle = login.trim().toLowerCase();
   return DEMO_ACCOUNTS.find((account) => account.login.toLowerCase() === needle);
 }
+
+/**
+ * Règle de DM (voir docs/architecture.md) : jamais entre deux membres du même
+ * niveau. Reflète exactement la même règle appliquée côté API
+ * (backend/api/src/routes/messaging.ts) — dupliquée ici pour filtrer la liste de
+ * destinataires proposée à l'écran, l'API reste la seule autorité qui compte.
+ */
+export function canDm(a: Pick<DemoAccount, "id" | "accessRole" | "pole">, b: Pick<DemoAccount, "id" | "accessRole" | "pole">): boolean {
+  if (a.id === b.id) return false;
+  const isDirector = (u: typeof a) => u.accessRole === "directeur_admin";
+  const isManager = (u: typeof a) => u.accessRole === "manager_admin";
+  if (isDirector(a) || isDirector(b)) return true;
+  if (isManager(a) && isManager(b)) return true;
+  if (isManager(a) && a.pole === b.pole) return true;
+  if (isManager(b) && b.pole === a.pole) return true;
+  return false;
+}

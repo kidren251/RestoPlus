@@ -34,7 +34,8 @@ réelle : chaque table a des coordonnées `(x, y, rotation, forme)` libres, plus
 de décor (`mur`, `bar`, `entree`, `cuisine`) pour repère visuel. Voir `packages/types/src/index.ts`.
 
 ## Roadmap de référence
-Voir la feuille de route complète discutée en conversation :
+**L'ordre de marche à jour (P1 → P2 → P3 → pilote → hôtellerie) et les tâches à cocher
+sont dans [`axes-de-progression.md`](./axes-de-progression.md).** Étapes historiques :
 0. Setup technique (ce dépôt) ✅
 1. MVP restreint (plan de salle + checklists HACCP + offline)
 2. Test terrain sur un établissement pilote
@@ -99,3 +100,53 @@ QR. Un manager authentifié génère une invitation serveur à usage unique avec
 L'intérimaire scanne le QR dans Restau Plus et la redemption publique est limitée au token
 opaque de l'invitation. La génération reste protégée par le restaurant du manager ; le QR
 ne contient aucune donnée client ni clé d'accès permanente.
+
+## Départements, lieux et PMS (cible hôtelière)
+
+L'application vise à équiper tous les services d'un hôtel, pas seulement la salle et la
+cuisine. Modèle retenu : **départements × modules**.
+
+- Un **département** est une équipe (membres N0-N2, canal, délégations, compte rendu).
+  Catalogue de types dans `packages/types/src/departements.ts` : direction, salle,
+  cuisine, maintenance, espaces verts, gouvernance. Le niveau N0-N3 est commun ; seul
+  l'intitulé change selon le département.
+- Un **module** est un outil activé par un département : plan de salle, stock, HACCP,
+  tickets inter-départements, planning, préventif, chambres…
+- Le **référentiel des lieux** (`lieux.ts`) décrit l'établissement : bâtiment > étage >
+  chambre / salle / espace extérieur / équipement. Tickets, gouvernance et préventif
+  s'appuient dessus.
+- Le **PMS** de l'hôtel fait foi pour l'occupation des chambres ; Resto Plus fait foi pour
+  le statut ménage. Tout échange passe par `backend/api/src/pms/` (contrat `PmsConnector`,
+  note d'intégration en tête de `index.ts`). Sans PMS, connecteur manuel.
+- La **mise en place d'un client** (départements, lieux, PMS, horaires) est préparée par le
+  N4 dans la console plateforme avant livraison : `ConfigurationEtablissement`
+  (`etablissement.ts`).
+
+État : fondations (types + contrat PMS) seulement. Le code utilise encore le type fermé
+`Pole` ; la bascule vers des départements en données est prévue pendant le branchement
+Supabase. Suivi détaillé : `docs/axes-de-progression.md`, section « Départements hôteliers ».
+
+## Sécurité : règles à respecter pour toute nouvelle fonctionnalité
+
+1. **Supabase ne sert qu'à l'authentification côté mobile.** L'app ne contient jamais la
+   clé `service_role` (seule la clé publique `anon`, le jour où elle sera nécessaire) et
+   ne lit ni n'écrit aucune table directement : toutes les données passent par l'API.
+2. **RLS activée sur toutes les tables, sans exception** (migration 0013). Aucune
+   écriture directe n'est permise ; la lecture directe est limitée aux données
+   opérationnelles du restaurant du membre ; les données sensibles (clients,
+   réservations, messagerie, comptes rendus, délégations, commandes, audit) ne sont
+   lisibles que par l'API. Une vue doit être créée avec `security_invoker = true`.
+3. **L'API utilise `service_role`, qui ignore la RLS : l'isolation entre restaurants se
+   joue donc dans Fastify.** Toute route qui lit un objet par son id passe par
+   `appartient()` (`backend/api/src/tenant.ts`) et répond 404 si l'objet appartient à un
+   autre restaurant ; toute liste passe par `duRestaurant()` ; le restaurant d'un objet
+   créé vient toujours de la session, jamais du corps de la requête.
+4. **Les droits (niveau N0-N3, pôle) viennent de la matrice partagée**
+   `packages/types/src/permissions.ts`, appliquée par `requirePermission()`.
+5. **Test obligatoire après toute nouvelle route** : `yarn workspace @resto-plus/api test:isolation`
+   (le restaurant B tente chaque action sur les données du restaurant A).
+
+⚠️ **Mode démo** (`REQUIRE_AUTH=false`) : les en-têtes `X-Demo-User-*` et
+`X-Demo-Restaurant-Id` sont falsifiables et la console plateforme N4 est ouverte. Ces
+abaissements sont signalés par de gros commentaires dans `tenant.ts`, `demoIdentity.ts`
+et `routes/platform.ts`, et disparaissent dès que l'authentification est exigée.

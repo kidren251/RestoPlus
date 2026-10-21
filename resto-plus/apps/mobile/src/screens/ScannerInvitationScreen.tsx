@@ -5,7 +5,7 @@ import { colors, spacing, typography } from "@resto-plus/ui-luxury";
 import type { Pole } from "@resto-plus/types";
 import { api } from "../api/client";
 
-export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: () => void; onAccessGranted?: (pole: Pole) => void }) {
+export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: () => void; onAccessGranted?: (pole: Pole, displayName: string) => void }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [token, setToken] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -34,7 +34,7 @@ export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: (
       setPole(grantedPole);
       setMessage(`Invitation acceptée. Accès ${grantedPole === "cuisine" ? "cuisine" : "salle"} activé.`);
       setAccepted(true);
-      onAccessGranted?.(grantedPole);
+      onAccessGranted?.(grantedPole, displayName.trim());
     } catch {
       setMessage("Invitation invalide, expirée ou déjà utilisée.");
     }
@@ -63,7 +63,7 @@ export function ScannerInvitationScreen({ onBack, onAccessGranted }: { onBack: (
           <Button title="Scanner un autre code" onPress={() => { setToken(null); setScanned(false); setMessage(""); }} />
         </View>
       )}
-      <Button title={accepted ? "Continuer" : "Retour"} onPress={accepted ? () => onAccessGranted?.(pole) : onBack} />
+      <Button title={accepted ? "Continuer" : "Retour"} onPress={accepted ? () => onAccessGranted?.(pole, displayName.trim()) : onBack} />
     </View>
   );
 }

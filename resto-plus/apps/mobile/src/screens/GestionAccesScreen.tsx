@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import type { AccessRole, Pole } from "@resto-plus/types";
 import { api } from "../api/client";
+import { usePermissions } from "../hooks/usePermissions";
 
 type Member = { id: string; name: string; role: AccessRole; pole: Pole; status: "actif" | "temporaire" | "expire"; expiresAt?: string };
 
@@ -27,7 +28,10 @@ const POLE_LABEL: Record<Pole, string> = {
   direction: "Direction (accès aux deux)",
 };
 
-export function GestionAccesScreen({ onBack, onInvite }: { onBack: () => void; onInvite: () => void }) {
+export function GestionAccesScreen({ onBack, onInvite: onInviteProp }: { onBack: () => void; onInvite: () => void }) {
+  const allows = usePermissions();
+  const onInvite = allows("invitation.creer") ? onInviteProp : undefined;
+  const canChangePole = allows("acces.changer_pole");
   const [members, setMembers] = useState(INITIAL_MEMBERS);
 
   useFocusEffect(
@@ -60,7 +64,7 @@ export function GestionAccesScreen({ onBack, onInvite }: { onBack: () => void; o
       <Text style={styles.eyebrow}>UNIVERS RESTAURANT</Text>
       <Text style={styles.title}>Gestion des accès</Text>
       <Text style={styles.subtitle}>Contrôler les membres et les accès temporaires de cet établissement.</Text>
-      <Pressable style={styles.inviteButton} onPress={onInvite}><Text style={styles.inviteLabel}>+ Inviter un équipier</Text></Pressable>
+      {onInvite && <Pressable style={styles.inviteButton} onPress={onInvite}><Text style={styles.inviteLabel}>+ Inviter un équipier</Text></Pressable>}
       <Text style={styles.sectionLabel}>MEMBRES · {members.length}</Text>
       {members.map((member) => (
         <View key={member.id} style={styles.memberCard}>
@@ -72,7 +76,7 @@ export function GestionAccesScreen({ onBack, onInvite }: { onBack: () => void; o
           </View>
           <View style={styles.memberActions}>
             <Text style={[styles.status, member.status === "actif" ? styles.active : member.status === "temporaire" ? styles.temporary : styles.expired]}>{member.status}</Text>
-            {member.status !== "expire" && member.pole !== "direction" && (
+            {canChangePole && member.status !== "expire" && member.pole !== "direction" && (
               <Pressable onPress={() => changePole(member.id)}><Text style={styles.revoke}>Changer de pôle</Text></Pressable>
             )}
             {member.status !== "expire" && member.role !== "manager_admin" && <Pressable onPress={() => revoke(member.id)}><Text style={styles.revoke}>Révoquer</Text></Pressable>}

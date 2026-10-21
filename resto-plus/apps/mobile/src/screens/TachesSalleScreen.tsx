@@ -2,8 +2,10 @@ import React, { useEffect } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import { PeriodeTache, useTachesSalleStore } from "../store/tachesSalleStore";
+import { usePermissions } from "../hooks/usePermissions";
 
 export function TachesSalleScreen() {
+  const canReset = usePermissions()("taches.reinitialiser");
   const { taches, cochees, isLoading, hydrate, toggle, reset } = useTachesSalleStore();
 
   useEffect(() => {
@@ -31,9 +33,11 @@ export function TachesSalleScreen() {
       <TachesSection periode="matin" label="MATIN" taches={taches} cochees={cochees} onToggle={toggle} />
       <TachesSection periode="soir" label="SOIR" taches={taches} cochees={cochees} onToggle={toggle} />
 
-      <Pressable onPress={() => void reset()} style={styles.resetButton}>
-        <Text style={styles.resetLabel}>Réinitialiser la journée</Text>
-      </Pressable>
+      {canReset && (
+        <Pressable onPress={() => void reset()} style={styles.resetButton}>
+          <Text style={styles.resetLabel}>Réinitialiser la journée</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }

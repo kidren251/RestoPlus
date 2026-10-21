@@ -7,10 +7,11 @@
  */
 
 import { create } from "zustand";
-import type { MenuItem, StockItem } from "@resto-plus/types";
+import type { MenuItem, MenuItemIngredient, StockItem } from "@resto-plus/types";
 import { api } from "../api/client";
 import { useStockStore } from "./stockStore";
 import { useSalleStore } from "./salleStore";
+import { enqueueSync } from "./syncStore";
 
 // Données mockées (Phase 1 sans Supabase / mode hors ligne). Premier menu réel
 // utilisé comme exemple (9 recettes) — voir aussi backend/api/src/routes/menu.ts.
@@ -132,9 +133,12 @@ interface MenuState {
   isLoading: boolean;
 
   loadMenu: () => Promise<void>;
+  ajouterPlat: (nom: string, categorie: string | undefined, prixVente: number, ingredients: MenuItemIngredient[]) => void;
   commanderPlat: (tableId: string, menuItemId: string, quantite: number) => { ok: true } | { ok: false; error: string };
   margeUnitaire: (menuItemId: string) => number | undefined;
 }
+
+let _localMenuIdCounter = 0;
 
 export const useMenuStore = create<MenuState>((set, get) => ({
   items: [],
@@ -148,6 +152,18 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     } catch {
       set({ items: MOCK_MENU_ITEMS, isLoading: false });
     }
+  },
+
+  ajouterPlat: (nom, categorie, prixVente, ingredients) => {
+    const item: MenuItem = {
+      id: `local_menu_${Date.now()}_${_localMenuIdCounter++}`,
+      nom,
+      categorie,
+      prixVente,
+      ingredients,
+    };
+    set((state) => ({ items: [...state.items, item] }));
+    enqueueSync("menu_item_create", { nom, categorie, prixVente, ingredients });
   },
 
   commanderPlat: (tableId, menuItemId, quantite) => {
@@ -165,14 +181,19 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     }
 
     useSalleStore.getState().addLignePlat(tableId, `${menuItem.nom}`, quantite);
+    // La décrémentation du stock est faite par l'API (POST /menu-items/:id/order, droit
+    // "service.commander") : la salle n'a pas le droit d'ajuster le stock elle-même.
+    // Ici on ne fait que refléter la sortie en local, sans la renvoyer au serveur.
     for (const ingredient of menuItem.ingredients) {
       stock.enregistrerMouvement(
         ingredient.stockItemId,
         "sortie",
         ingredient.quantite * quantite,
-        `Commande table ${tableId} : ${menuItem.nom} ×${quantite}`
+        `Commande table ${tableId} : ${menuItem.nom} ×${quantite}`,
+        { sync: false }
       );
     }
+    enqueueSync("menu_order", { menuItemId, tableId, quantite });
     return { ok: true };
   },
 
