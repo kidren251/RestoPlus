@@ -58,7 +58,9 @@ const MOCK_CHECKLISTS: Checklist[] = [
 
 interface ChecklistState {
   checklists: Checklist[];
-  entries: Record<string, ChecklistEntry>; // clé : itemId
+  entries: Record<string, ChecklistEntry>; // clé : itemId — dernier relevé du point
+  /** Nombre de relevés du jour par point (un relevé refait s'ajoute, l'ancien reste). */
+  nbReleves: Record<string, number>;
   isLoading: boolean;
   activeChecklistId: string | null;
 
@@ -69,7 +71,6 @@ interface ChecklistState {
     valeur?: string,
     photoUrl?: string
   ) => void;
-  devaliderItem: (itemId: string) => void;
   setActiveChecklist: (id: string | null) => void;
   getEntreeItem: (itemId: string) => ChecklistEntry | undefined;
   getNombreEnAttente: () => number;
@@ -78,6 +79,7 @@ interface ChecklistState {
 export const useChecklistStore = create<ChecklistState>((set, get) => ({
   checklists: [],
   entries: {},
+  nbReleves: {},
   isLoading: false,
   activeChecklistId: null,
 
@@ -90,7 +92,9 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
       ]);
       // Relevés déjà faits aujourd'hui (sur ce téléphone ou un autre) : le dernier par point.
       const entries = { ...get().entries };
+      const nbReleves: Record<string, number> = {};
       for (const r of releves) {
+        nbReleves[r.itemId] = (nbReleves[r.itemId] ?? 0) + 1;
         entries[r.itemId] = {
           id: r.id,
           checklistId: r.checklistId,
@@ -103,7 +107,7 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
           syncStatus: "synced",
         };
       }
-      set({ checklists: data, entries, isLoading: false });
+      set({ checklists: data, entries, nbReleves, isLoading: false });
     } catch {
       // Mode offline → données mockées
       set({ checklists: MOCK_CHECKLISTS, isLoading: false });
@@ -123,8 +127,11 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
       syncStatus: "local",
     };
 
+    // Un relevé ne s'efface jamais : le refaire en ajoute un nouveau (le serveur garde
+    // les deux), l'écran affiche le plus récent.
     set((state) => ({
       entries: { ...state.entries, [item.id]: entry },
+      nbReleves: { ...state.nbReleves, [item.id]: (state.nbReleves[item.id] ?? 0) + 1 },
     }));
 
     enqueueSync("checklist_entry", {
@@ -134,14 +141,6 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
       valeur,
       photoUrl,
       timestamp: entry.timestamp,
-    });
-  },
-
-  devaliderItem: (itemId) => {
-    set((state) => {
-      const next = { ...state.entries };
-      delete next[itemId];
-      return { entries: next };
     });
   },
 

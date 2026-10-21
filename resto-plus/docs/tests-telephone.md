@@ -117,8 +117,11 @@ Compte : `comptecuisin-0` (N0 commis).
 - [ ] Sur un **deuxième téléphone** (autre compte cuisine) : le même point apparaît coché.
 - [ ] Hors ligne : valider un point, rallumer le réseau, relancer l'app : il est coché.
 - [ ] Journal d'audit (`comptesalle-3`) : une ligne HACCP par relevé.
-- [ ] Décocher un point puis relancer l'app : il revient coché (le relevé envoyé fait
-      foi). Noter si ce comportement gêne à l'usage.
+- [ ] Un point validé **ne se décoche plus** ; il affiche « Relevé à HH:MM ».
+- [ ] « Refaire le relevé » : la saisie revient ; valider avec une nouvelle valeur. La
+      ligne affiche la nouvelle valeur et « 2 relevés aujourd'hui ». Relancer l'app :
+      toujours 2 relevés, la valeur affichée est la plus récente.
+- [ ] « Refaire le relevé » puis « Annuler » : rien n'est enregistré.
 
 ## 6. Écrans à droits après le découpage du 10/10
 

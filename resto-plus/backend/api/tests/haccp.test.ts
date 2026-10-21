@@ -44,6 +44,15 @@ describe("checklists HACCP", () => {
     expect(json.filter((r: { id: string }) => r.id === id)).toHaveLength(1);
   });
 
+  it("refaire un relevé en ajoute un nouveau : les deux restent dans l'historique", async () => {
+    const premier = { id: randomUUID(), checklistId: "cl-4h", itemId: "i10", valeur: 6.5, conforme: false, timestamp: new Date(Date.now() - 60_000).toISOString() };
+    const refait = { id: randomUUID(), checklistId: "cl-4h", itemId: "i10", valeur: 3.8, conforme: true, timestamp: new Date().toISOString() };
+    await appel(app, "POST", "/checklist-entries", commis, premier);
+    await appel(app, "POST", "/checklist-entries", commis, refait);
+    const { json } = await appel(app, "GET", "/checklist-entries", commis);
+    expect(json.filter((r: { itemId: string }) => r.itemId === "i10").map((r: { valeur: string }) => r.valeur)).toEqual(["6.5", "3.8"]);
+  });
+
   it("une heure dans le futur est ramenée à maintenant", async () => {
     const futur = new Date(Date.now() + 3 * 3600_000).toISOString();
     const { json } = await appel(app, "POST", "/checklist-entries", commis, { checklistId: "cl-4h", itemId: "i11", timestamp: futur });

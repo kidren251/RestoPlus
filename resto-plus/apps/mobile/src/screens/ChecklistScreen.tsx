@@ -20,7 +20,7 @@ const FREQUENCE_LABEL: Record<string, string> = {
 };
 
 export function ChecklistScreen() {
-  const { checklists, isLoading, validerItem, devaliderItem, getEntreeItem } =
+  const { checklists, isLoading, validerItem, getEntreeItem, nbReleves } =
     useChecklistStore();
   const [expanded, setExpanded] = useState<string | null>(
     checklists[0]?.id ?? null
@@ -77,7 +77,7 @@ export function ChecklistScreen() {
           onToggle={() => setExpanded(expanded === cl.id ? null : cl.id)}
           getEntreeItem={getEntreeItem}
           onValider={(item, valeur) => validerItem(cl.id, item, valeur)}
-          onDevalider={(itemId) => devaliderItem(itemId)}
+          nbReleves={nbReleves}
         />
       ))}
     </ScrollView>
@@ -92,14 +92,14 @@ function ChecklistSection({
   onToggle,
   getEntreeItem,
   onValider,
-  onDevalider,
+  nbReleves,
 }: {
   checklist: Checklist;
   expanded: boolean;
   onToggle: () => void;
   getEntreeItem: (itemId: string) => ReturnType<typeof useChecklistStore.getState>["entries"][string] | undefined;
   onValider: (item: ChecklistItem, valeur?: string) => void;
-  onDevalider: (itemId: string) => void;
+  nbReleves: Record<string, number>;
 }) {
   const validatedInSection = checklist.items.filter((i) =>
     getEntreeItem(i.id)
@@ -136,7 +136,7 @@ function ChecklistSection({
               item={item}
               entree={getEntreeItem(item.id)}
               onValider={(valeur) => onValider(item, valeur)}
-              onDevalider={() => onDevalider(item.id)}
+              nbReleves={nbReleves[item.id] ?? 0}
             />
           ))}
         </View>
@@ -151,29 +151,30 @@ function ChecklistItemRow({
   item,
   entree,
   onValider,
-  onDevalider,
+  nbReleves,
 }: {
   item: ChecklistItem;
   entree: ReturnType<typeof useChecklistStore.getState>["entries"][string] | undefined;
   onValider: (valeur?: string) => void;
-  onDevalider: () => void;
+  nbReleves: number;
 }) {
-  const [valeur, setValeur] = useState(entree?.valeur ?? "");
-  const isValidated = !!entree;
+  const [valeur, setValeur] = useState("");
+  /** Relevé refait : le point redevient saisissable, l'ancien relevé reste enregistré. */
+  const [refaire, setRefaire] = useState(false);
+  const isValidated = !!entree && !refaire;
 
-  const handleToggle = () => {
-    if (isValidated) {
-      onDevalider();
-      setValeur("");
-    } else {
-      onValider(item.requiertValeur ? valeur : undefined);
-    }
+  const valider = () => {
+    if (isValidated) return; // un relevé envoyé fait foi : il ne se décoche pas
+    onValider(item.requiertValeur ? valeur : undefined);
+    setValeur("");
+    setRefaire(false);
   };
 
   return (
     <View style={styles.itemRow}>
       <Pressable
-        onPress={handleToggle}
+        onPress={valider}
+        disabled={isValidated}
         style={[styles.checkbox, isValidated && styles.checkboxDone]}
         hitSlop={8}
       >
@@ -203,6 +204,27 @@ function ChecklistItemRow({
           <Text style={styles.valeurAffichee}>{entree.valeur}</Text>
         )}
 
+        {isValidated && entree && (
+          <View style={styles.releveRow}>
+            <Text style={styles.releveHeure}>
+              Relevé à {new Date(entree.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              {nbReleves > 1 ? ` · ${nbReleves} relevés aujourd'hui` : ""}
+            </Text>
+            <Pressable onPress={() => setRefaire(true)} hitSlop={8}>
+              <Text style={styles.refaire}>Refaire le relevé</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {refaire && (
+          <View style={styles.releveRow}>
+            <Text style={styles.releveHeure}>Nouveau relevé : l'ancien reste dans l'historique.</Text>
+            <Pressable onPress={() => setRefaire(false)} hitSlop={8}>
+              <Text style={styles.refaire}>Annuler</Text>
+            </Pressable>
+          </View>
+        )}
+
         {item.requiertPhoto && (
           <View style={styles.photoBadge}>
             <Text style={styles.photoBadgeText}>
@@ -222,6 +244,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  releveRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginTop: 4 },
+  releveHeure: { flex: 1, fontSize: 10, color: colors.textMuted },
+  refaire: { fontSize: 10, color: colors.gold, fontWeight: "600", textDecorationLine: "underline" },
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xl * 2,
