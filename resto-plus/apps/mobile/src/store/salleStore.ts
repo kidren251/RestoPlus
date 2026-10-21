@@ -178,7 +178,8 @@ interface SalleState {
   updateTableService: (tableId: string, updates: { course?: ServiceCourse; dishStatus?: DishServiceStatus }) => void;
   openTable: (tableId: string) => void;
   sendAddition: (tableId: string) => void;
-  saveClient: (tableId: string, client: Pick<Client, "nom" | "telephone" | "allergies" | "notes">) => void;
+  /** Fiche client + allergies du repas en cours (jamais stockées sur la fiche). */
+  saveClient: (tableId: string, client: Pick<Client, "nom" | "telephone" | "notes">, allergenes: string[]) => void;
   updateSalleConfiguration: (updates: { nom?: string; largeurCanvas?: number; hauteurCanvas?: number }) => void;
   addTable: (input: { nom: string; capacite: number; forme: Table["forme"] }) => void;
   removeTable: (tableId: string) => void;
@@ -310,6 +311,9 @@ export const useSalleStore = create<SalleState>((set, get) => ({
     const next = {
       ...current,
       dishStatus: "aucun" as const,
+      // Repas terminé : les allergies (donnée de santé) ne sont plus conservées.
+      allergenes: undefined,
+      allergenesSignalesAt: undefined,
       lastEventAt: occurredAt,
       events: [...(current.events ?? []), {
         id: `service-${tableId}-${Date.now()}`,
@@ -327,32 +331,32 @@ export const useSalleStore = create<SalleState>((set, get) => ({
     enqueueSync("table_bill_sent", { tableId, occurredAt });
   },
 
-  saveClient: (tableId, client) => {
+  saveClient: (tableId, client, allergenes) => {
     const current = get().serviceStates[tableId] ?? { tableId, course: "entree" as const, dishStatus: "aucun" as const };
     const occurredAt = new Date().toISOString();
     const savedClient: Client = {
       id: current.clientId ?? `client-${tableId}`,
       nom: client.nom,
       telephone: client.telephone,
-      allergies: client.allergies,
       notes: client.notes,
       createdAt: current.client?.createdAt ?? occurredAt,
       lastVisitAt: occurredAt,
       visitStatus: "installe",
     };
+    const next = {
+      ...current,
+      clientId: savedClient.id,
+      clientName: client.nom,
+      client: savedClient,
+      allergenes: allergenes.length > 0 ? allergenes : undefined,
+      allergenesSignalesAt: allergenes.length > 0 ? current.allergenesSignalesAt ?? occurredAt : undefined,
+      lastEventAt: occurredAt,
+    };
     set((state) => ({
-      serviceStates: {
-        ...state.serviceStates,
-        [tableId]: {
-          ...current,
-          clientId: savedClient.id,
-          clientName: client.nom,
-          client: savedClient,
-          lastEventAt: occurredAt,
-        },
-      },
+      serviceStates: { ...state.serviceStates, [tableId]: next },
     }));
     enqueueSync("client_upsert", savedClient);
+    enqueueSync("table_service_update", next);
   },
 
   addLignePlat: (tableId, nom, quantite) => {

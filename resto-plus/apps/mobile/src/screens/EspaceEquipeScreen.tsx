@@ -24,7 +24,7 @@ const ESPACES = {
     subtitle: "Piloter les tables, les clients et le déroulement du service.",
     actions: [
       { id: "plan_salle", label: "Plan de salle", detail: "Tables, statuts et suivi du dîner" },
-      { id: "fiches_vip", label: "Réservations et clients", detail: "Arrivées, allergies et historique client" },
+      { id: "fiches_vip", label: "Réservations et clients", detail: "Arrivées, allergies du repas et historique client" },
       { id: "taches_salle", label: "Tâches matin et soir", detail: "Checklist quotidienne de l’équipe" },
       { id: "inviter_equipier", label: "Invitations équipiers", detail: "Générer un QR code serveur temporaire" },
       { id: "gestion_acces", label: "Gestion des accès", detail: "Membres, rôles et accès temporaires" },

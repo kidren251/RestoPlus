@@ -64,7 +64,7 @@ export async function authenticateRequest(request: FastifyRequest): Promise<Auth
 
   const { data: membership, error: membershipError } = await supabase
     .from("restaurant_members")
-    .select("restaurant_id, access_role, pole, actif")
+    .select("restaurant_id, access_role, departement, actif")
     .eq("user_id", userData.user.id)
     .eq("actif", true)
     .maybeSingle();
@@ -77,7 +77,9 @@ export async function authenticateRequest(request: FastifyRequest): Promise<Auth
     userId: userData.user.id,
     restaurantId: membership.restaurant_id,
     accessRole: membership.access_role as AccessRole,
-    pole: membership.pole as Pole,
+    // Colonne `departement` depuis la migration 0014. Le type Pole sera remplacé par
+    // TypeDepartement dans tout le code (axes-de-progression, étape A).
+    pole: membership.departement as Pole,
     platformRole,
   };
 }

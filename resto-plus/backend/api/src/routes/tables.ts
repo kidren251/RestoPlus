@@ -72,7 +72,7 @@ export async function tablesRoutes(app: FastifyInstance) {
   // PUT /tables/:id/service
   app.put<{
     Params: { id: string };
-    Body: { tableId: string; reservationId?: string; clientId?: string; clientName?: string; course: ServiceCourse; dishStatus: DishServiceStatus; seatedAt?: string; lastEventAt?: string };
+    Body: { tableId: string; reservationId?: string; clientId?: string; clientName?: string; course: ServiceCourse; dishStatus: DishServiceStatus; seatedAt?: string; lastEventAt?: string; allergenes?: string[]; allergenesSignalesAt?: string };
   }>("/tables/:id/service", { preHandler: requirePermission("service.suivre") }, async (req, reply) => {
     const { course, dishStatus } = req.body;
     const ETAPES: ServiceCourse[] = ["aucun", "entree", "plat", "dessert"];
@@ -82,6 +82,10 @@ export async function tablesRoutes(app: FastifyInstance) {
     }
     if (!ETATS_PLAT.includes(dishStatus)) {
       return reply.status(400).send({ error: "État de plat invalide" });
+    }
+    // Allergies = donnée de santé : seulement si le client les a signalées (docs/rgpd.md).
+    if (req.body.allergenes?.length && !req.body.allergenesSignalesAt) {
+      return reply.status(400).send({ error: "Allergies non signalées par le client" });
     }
     tableServices[req.params.id] = {
       ...req.body,
@@ -98,6 +102,12 @@ export async function tablesRoutes(app: FastifyInstance) {
 
   app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/bill", { preHandler: requirePermission("service.addition") }, async (req) => {
     tableStatuts[req.params.id] = "a_nettoyer";
+    // Repas terminé : les allergies ne sont plus conservées.
+    const service = tableServices[req.params.id];
+    if (service) {
+      delete service.allergenes;
+      delete service.allergenesSignalesAt;
+    }
     journalAdditions.push({ tableId: req.params.id, restaurantId: restaurantDe(req), at: new Date().toISOString() });
     journaliser(req, "service.addition", { cible: { type: "table", id: req.params.id } });
     return { tableId: req.params.id, status: "a_nettoyer", billedAt: req.body.occurredAt };

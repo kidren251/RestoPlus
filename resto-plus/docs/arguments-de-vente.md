@@ -94,6 +94,51 @@ la vérité, et vous savez qui en répond. »*
 
 ---
 
+## 3. Le RGPD géré par l'outil, pas par le restaurateur
+
+**Le problème du client**
+Un restaurant accumule des données sensibles sans s'en rendre compte : numéros de
+téléphone, habitudes des clients, et surtout leurs **allergies, qui sont des données de
+santé**. Les carnets papier et les tableurs ne s'effacent jamais. Le jour d'un contrôle
+ou d'une demande d'effacement, le restaurateur ne sait ni ce qu'il détient, ni depuis
+quand.
+
+**Notre réponse**
+- Les allergies servent **le temps du repas**, puis disparaissent : aucun dossier
+  médical à garder ni à protéger. Elles ne s'enregistrent que si le client les a
+  signalées lui-même.
+- Chaque nuit, l'application **anonymise d'elle-même** les clients qui ne sont pas
+  revenus depuis 3 ans, les anciens messages et les employés partis.
+- Une demande d'effacement se traite **en un geste**, sans fausser le chiffre
+  d'affaires ni l'historique HACCP : la personne disparaît, les chiffres restent.
+- Données hébergées **à Paris**.
+
+**Ce qui le rend crédible techniquement**
+- Les règles sont dans la base de données elle-même (allergies refusées sans
+  signalement du client et effacées à la fin du repas, purge automatique programmée),
+  pas dans un réglage qu'on oublie d'activer.
+- Durées de conservation réglables par établissement ; registre des traitements prêt
+  à présenter (`docs/rgpd.md`).
+
+**Phrase d'accroche**
+*« Vos clients vous confient leurs allergies pour un repas. Resto Plus les donne à
+votre équipe le temps du service, puis les oublie. »*
+
+**Astuces**
+- *Objection attendue : « Mes habitués vont devoir redonner leurs allergies à chaque
+  fois ? »* — Oui, et c'est voulu : **un client fidèle redonne ses allergies à chaque
+  visite**. C'est aussi la bonne pratique de sécurité alimentaire, car une allergie
+  peut évoluer : une information notée il y a deux ans peut être fausse ce soir.
+  Demander à chaque repas protège le client… et le restaurant.
+- Présenter la question comme une attention de service (« Avez-vous des allergies
+  ce soir ? ») plutôt que comme une contrainte : c'est déjà le réflexe des maisons
+  sérieuses.
+
+> À n'utiliser commercialement qu'après validation juridique des durées et des bases
+> légales (voir `docs/rgpd.md`, « À faire valider »).
+
+---
+
 # Facturation (pistes de travail)
 
 Idée de départ : **facturer au nombre d'utilisateurs** de l'écosystème d'un
