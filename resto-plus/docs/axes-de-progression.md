@@ -47,10 +47,13 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
       `restau-plus.v1-dev` (Paris), clés dans `backend/api/.env`, appliquées le 21/10/2026
       (`yarn workspace @resto-plus/api db:migrate`) ; 27 tables, toutes sous RLS
 - [x] Vérifier que les migrations passent dans l'ordre sur une base vierge (`db:migrate --a-blanc`) — 21/10/2026, branche `feat/p1-supabase-schema`
-- [ ] Créer une couche d'accès aux données par domaine (`backend/api/src/repositories/`),
-      avec la même interface en mémoire (tests) et Supabase (réel)
+- [x] Créer une couche d'accès aux données par domaine (`backend/api/src/repositories/`),
+      avec la même interface en mémoire (tests) et Supabase (réel) — 21/10/2026, branche `feat/p1-branchement-salles`
+      — modèle : `salles.ts` (interface), `salles.memoire.ts`, `salles.supabase.ts` ;
+      tests d'intégration à part : `yarn workspace @resto-plus/api test:supabase`
 - [ ] Brancher les routes une par une sur cette couche :
-  - [ ] salles / tables / état des tables (`tableState.ts`)
+  - [x] salles / tables / état des tables (migration `0016`, 11 tests d'intégration) — 21/10/2026, branche `feat/p1-branchement-salles`
+        — reste : événements du dîner (`service_events` exige une réservation) non persistés
   - [ ] clients / réservations
   - [ ] checklists HACCP
   - [ ] stock (articles, mouvements, alertes)
@@ -61,7 +64,9 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
   - [ ] délégations (`delegationStore.ts`)
   - [ ] journal d'audit (`audit.ts`), avec le verrou anti-modification de `0012`
   - [ ] univers plateforme N4 (`platform.ts`)
-- [ ] Script d'insertion des données de démo en base (restaurant de démo + 7 comptes)
+- [ ] Script d'insertion des données de démo en base (restaurant de démo + 7 comptes) —
+      commencé : `yarn workspace @resto-plus/api db:seed` (restaurant, départements, salle,
+      tables, décor) ; à compléter à chaque domaine branché
 - [ ] Relancer les tests d'isolation en mode Supabase
 
 ### Authentification unifiée

@@ -11,7 +11,11 @@ import { isAuthRequired } from "./auth";
  * `appartient()` et répond 404 (jamais 403, pour ne pas révéler qu'il existe ailleurs).
  */
 
-export const DEMO_RESTAURANT_ID = "demo-restaurant";
+/**
+ * Restaurant de démo. Un uuid fixe : c'est aussi son identifiant en base Supabase
+ * (inséré par scripts/seed-demo.mjs), pour que le mode démo fonctionne des deux côtés.
+ */
+export const DEMO_RESTAURANT_ID = "d3e00000-0000-4000-8000-000000000001";
 
 /** Restaurant auquel rien n'appartient : réponse sûre quand on ne sait pas qui appelle. */
 const AUCUN_RESTAURANT = "aucun-restaurant";
