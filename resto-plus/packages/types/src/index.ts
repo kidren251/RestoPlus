@@ -177,13 +177,22 @@ export interface ChecklistItem {
   label: string;
   requiertPhoto: boolean;
   requiertValeur: boolean; // ex: température
+  /** Seuils d'un point chiffré : hors seuil = non conforme (voir haccp.ts). */
+  seuilMin?: number;
+  seuilMax?: number;
+  /** Unité affichée (« °C », « % »). */
+  unite?: string;
+  /** Rappel de la règle (« de +63 °C à moins de +10 °C en moins de 2 h »). */
+  consigne?: string;
 }
+
+export type FrequenceChecklist = "reception" | "ouverture" | "service" | "fermeture" | "4h" | "hebdomadaire";
 
 export interface Checklist {
   id: string;
   /** Nom affiché (« Ouverture cuisine ») — colonne `nom` en base. */
   type: string;
-  frequence: "ouverture" | "fermeture" | "4h" | "hebdomadaire";
+  frequence: FrequenceChecklist;
   items: ChecklistItem[];
 }
 
@@ -194,6 +203,7 @@ export interface ChecklistEntry {
   itemId: string;
   valeur?: string;
   photoUrl?: string;
+  /** Calculée par l'API à partir des seuils du point. */
   conforme?: boolean;
   commentaire?: string;
   /** Heure du relevé sur le téléphone (fait foi, même hors ligne). */
@@ -456,3 +466,4 @@ export * from "./departements";
 export * from "./lieux";
 export * from "./pms";
 export * from "./etablissement";
+export * from "./haccp";

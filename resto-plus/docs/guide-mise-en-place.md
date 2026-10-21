@@ -4,8 +4,9 @@ Pour le technicien qui installe Resto Plus chez un client. But : en un entretien
 30 minutes, savoir quels réglages proposer, sans tout réinventer à chaque fois.
 
 Méthode : **1.** poser les questions de la partie 1 ; **2.** choisir le profil le plus
-proche (partie 2) ; **3.** ajuster les quelques réglages qui diffèrent ; **4.** faire la
-liste de contrôle avant livraison (partie 5).
+proche (partie 2) ; **3.** ajuster les quelques réglages qui diffèrent ; **4.** adapter le
+plan HACCP au PMS du client (partie 4, point de vigilance) ; **5.** faire la liste de
+contrôle avant livraison (partie 6).
 
 Dernière mise à jour : 21 octobre 2026. Ce guide évolue avec le produit : ne promettez
 au client que ce qui figure dans la partie 3 « Ce qui se règle aujourd'hui ».
@@ -26,7 +27,8 @@ au client que ce qui figure dans la partie 3 « Ce qui se règle aujourd'hui ».
 | 8 | À quelle heure finit réellement le dernier service ? | Heure de bascule de la journée (5h par défaut) |
 | 9 | Combien de personnes en salle / en cuisine, et qui les encadre ? | Comptes N0 à N2 à créer, délégations |
 | 10 | Le directeur est-il en salle pendant le service ? | Formation au verrou de service du directeur |
-| 11 | Quels contrôles HACCP faites-vous aujourd'hui (papier) ? À quelle fréquence ? | Plan HACCP à saisir (demande technique) |
+| 11 | Avez-vous un plan de maîtrise sanitaire (PMS) ou un classeur HACCP ? Qui l'a fait ? | Adaptation du plan HACCP (partie 4) |
+| 12 | Combien d'équipements froids (chambres, frigos, congélateurs) ? Friteuse ? Cellule de refroidissement ? | Points de contrôle et seuils à prévoir |
 
 Les niveaux : **N0** serveur / commis · **N1** chef de rang / chef de partie ·
 **N2** manager de salle / chef de cuisine · **N3** directeur de l'établissement.
@@ -86,6 +88,8 @@ compte N4, propre au technicien.
 
 ### Depuis l'application, par l'équipe du client
 - **Plan de salle** (N2) : tables, noms, capacités, disposition, décor.
+- **Plan HACCP** (chef de cuisine N2 ou directeur N3) : checklists, points de contrôle,
+  seuils et consignes — écran « Plan HACCP » de l'espace cuisine. Voir la partie 4.
 - **Carte et stock** (cuisine, N1 pour créer, N2 pour sortir) : articles, seuils, plats et ingrédients.
 - **Comptes de l'équipe** (N3) : création des comptes N0-N2, codes d'activation `RP-XXXX-XXXX`.
 - **Délégations** (N3) : confier les tâches d'un N2 absent à un N1 de son pôle.
@@ -94,9 +98,7 @@ compte N4, propre au technicien.
 - Heure de bascule de la journée de service et fuseau horaire (`restaurants.heure_bascule_service`).
 - Durées de conservation RGPD (clients 36 mois, messages 12 mois, anciens membres 12 mois).
 - Départements activés (salle, cuisine, direction pour un restaurant).
-- **Plan HACCP** : checklists (ouverture, fermeture, contrôles réguliers) et leurs points
-  de contrôle, à adapter au plan de maîtrise sanitaire du client. Demander au client son
-  plan actuel (papier) lors de l'entretien.
+
 
 ### Ce qui n'est PAS réglable (et ne doit pas l'être)
 - Les sorties de stock, pertes et ajustements : toujours N2 (chef de cuisine).
@@ -107,7 +109,35 @@ compte N4, propre au technicien.
 
 ---
 
-## 4. Points d'ergonomie à présenter au client
+## 4. ⚠ Point de vigilance à chaque audit : le plan HACCP
+
+Le plan HACCP installé par défaut est un **plan de démonstration** inspiré du guide de
+bonnes pratiques d'hygiène (GBPH) du restaurateur. Il n'est **pas validé** par un
+professionnel de l'hygiène et **ne correspond pas** au plan de maîtrise sanitaire (PMS)
+du client. Un plan inadapté expose le client lors d'un contrôle des services vétérinaires
+(DDPP) : c'est le point à ne jamais laisser passer.
+
+À chaque mise en place, **et à chaque visite de suivi** :
+- [ ] Demander le **PMS du client** (ou son classeur HACCP papier) et le comparer au plan
+      de l'application, checklist par checklist.
+- [ ] Vérifier que chaque **équipement froid** du client a son point de relevé (une
+      chambre froide, deux frigos de poste, un congélateur = quatre points, pas un seul).
+- [ ] Vérifier les **seuils** avec le client : ils dépendent des produits (viandes hachées
+      et produits de la mer plus stricts que 4 °C, par exemple). Ne jamais inventer un seuil :
+      le client ou son conseiller hygiène le fournit.
+- [ ] Ajouter ce qui est propre à l'activité : bar, pâtisserie, **plats témoins** (obligatoires
+      en restauration collective), livraisons, buffet…
+- [ ] Retirer ce qui ne s'applique pas (pas de friteuse = pas de contrôle d'huile).
+- [ ] Rappeler au chef de cuisine qu'il modifie lui-même le plan dans l'écran
+      « Plan HACCP », et que chaque modification est tracée.
+- [ ] Noter dans la fiche de synthèse si le plan a été **validé par un professionnel** de
+      l'hygiène (et par qui), ou s'il reste à faire valider.
+- [ ] Si un relevé hors seuil revient souvent (frigo à +6 °C chaque matin), le signaler :
+      c'est un problème d'équipement, pas de saisie.
+
+---
+
+## 5. Points d'ergonomie à présenter au client
 
 - **Installer en un geste** : toucher la table, puis le nom du client attendu, ou « Sans
   réservation » + nombre de couverts.
@@ -123,7 +153,7 @@ compte N4, propre au technicien.
 
 ---
 
-## 5. Liste de contrôle avant livraison
+## 6. Liste de contrôle avant livraison
 
 - [ ] Profil choisi et droits réglés dans la console N4 ; le client a validé le tableau.
 - [ ] Plan de salle saisi (nombre de tables et capacités vérifiés avec le client).
@@ -132,6 +162,8 @@ compte N4, propre au technicien.
 - [ ] Test rapide avec un compte N0 : installer un client, commander un plat,
       vérifier qu'il ne voit que ce qu'il doit voir.
 - [ ] Heure de bascule confirmée (demande technique si différente de 5h).
+- [ ] **Plan HACCP adapté au PMS du client** (partie 4) ; validation par un
+      professionnel de l'hygiène faite ou programmée.
 - [ ] Formation : installer / sans réservation / changer de table / addition / compte rendu.
 - [ ] Le client sait qui contacter en cas de problème pendant les premiers services.
 
@@ -147,5 +179,6 @@ compte N4, propre au technicien.
 | Écarts par rapport au profil | |
 | Heure de fin du dernier service | |
 | Nombre de comptes N0 / N1 / N2 | |
+| Plan HACCP : comparé au PMS ? validé par (nom, date) ? | |
 | Demandes techniques à transmettre | |
 | Demandes du client hors périmètre (à remonter au produit) | |

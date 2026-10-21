@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator, type NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { AccueilScreen } from "../screens/AccueilScreen";
 import { ChecklistScreen } from "../screens/ChecklistScreen";
+import { PlanHaccpScreen } from "../screens/PlanHaccpScreen";
 import { ReservationsScreen } from "../screens/ReservationsScreen";
 import { TachesSalleScreen } from "../screens/TachesSalleScreen";
 import { ClientEditionScreen } from "../screens/ClientEditionScreen";
@@ -68,6 +69,7 @@ function naviguerVers(navigation: Navigation, destination: string) {
   switch (destination) {
     case "plan_salle": return ouvrirPlanSalle(navigation);
     case "checklists": return navigation.navigate("Checklist");
+    case "plan_haccp": return navigation.navigate("PlanHaccp");
     case "fiches_vip": return navigation.navigate("Reservations");
     case "taches_salle": return navigation.navigate("TachesSalle");
     case "espace_cuisine": return navigation.navigate("EspaceCuisine");
@@ -372,6 +374,16 @@ export function AppNavigator() {
           {({ navigation }) => (
             <ScreenWithHeader title="Checklists HACCP" onBack={() => navigation.goBack()}>
               <ChecklistScreen />
+            </ScreenWithHeader>
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="PlanHaccp">
+          {({ navigation }) => (
+            <ScreenWithHeader title="Plan HACCP" onBack={() => navigation.goBack()}>
+              <RequirePermission permission="haccp.configurer" message="Le plan HACCP se modifie par le chef de cuisine (N2) ou la direction.">
+                <PlanHaccpScreen />
+              </RequirePermission>
             </ScreenWithHeader>
           )}
         </Stack.Screen>

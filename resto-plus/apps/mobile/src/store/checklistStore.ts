@@ -4,7 +4,7 @@
  */
 
 import { create } from "zustand";
-import type { Checklist, ChecklistItem, ChecklistEntry } from "@resto-plus/types";
+import { estConforme, type Checklist, type ChecklistItem, type ChecklistEntry } from "@resto-plus/types";
 import { api } from "../api/client";
 import { enqueueSync } from "./syncStore";
 import { nouvelId } from "../utils/identifiant";
@@ -17,44 +17,9 @@ interface ReleveServeur {
   userId?: string;
   valeur?: string;
   photoUrl?: string;
+  conforme?: boolean;
   releveAt: string;
 }
-
-// Données mockées (Phase 1 sans Supabase)
-const MOCK_CHECKLISTS: Checklist[] = [
-  {
-    id: "cl-ouverture",
-    type: "Ouverture cuisine",
-    frequence: "ouverture",
-    items: [
-      { id: "i1", label: "Vérification température réfrigérateurs", requiertPhoto: false, requiertValeur: true },
-      { id: "i2", label: "Contrôle date des produits", requiertPhoto: false, requiertValeur: false },
-      { id: "i3", label: "Nettoyage plans de travail", requiertPhoto: true, requiertValeur: false },
-      { id: "i4", label: "Vérification stocks salle", requiertPhoto: false, requiertValeur: false },
-      { id: "i5", label: "Test équipements (four, friteuse)", requiertPhoto: false, requiertValeur: false },
-    ],
-  },
-  {
-    id: "cl-fermeture",
-    type: "Fermeture cuisine",
-    frequence: "fermeture",
-    items: [
-      { id: "i6", label: "Nettoyage et désinfection cuisine", requiertPhoto: true, requiertValeur: false },
-      { id: "i7", label: "Relevé températures finales", requiertPhoto: false, requiertValeur: true },
-      { id: "i8", label: "Emballage et étiquetage restes", requiertPhoto: false, requiertValeur: false },
-      { id: "i9", label: "Vérification fermeture chambre froide", requiertPhoto: false, requiertValeur: false },
-    ],
-  },
-  {
-    id: "cl-4h",
-    type: "Contrôle 4h",
-    frequence: "4h",
-    items: [
-      { id: "i10", label: "Relevé température réfrigérateurs", requiertPhoto: false, requiertValeur: true },
-      { id: "i11", label: "Vérification hygiène personnelle", requiertPhoto: false, requiertValeur: false },
-    ],
-  },
-];
 
 interface ChecklistState {
   checklists: Checklist[];
@@ -102,6 +67,7 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
           userId: r.userId ?? "",
           valeur: r.valeur,
           photoUrl: r.photoUrl,
+          conforme: r.conforme,
           timestamp: r.releveAt,
           statut: "valide",
           syncStatus: "synced",
@@ -109,8 +75,8 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
       }
       set({ checklists: data, entries, nbReleves, isLoading: false });
     } catch {
-      // Mode offline → données mockées
-      set({ checklists: MOCK_CHECKLISTS, isLoading: false });
+      // Hors ligne : on garde le dernier plan chargé.
+      set({ isLoading: false });
     }
   },
 
@@ -122,6 +88,8 @@ export const useChecklistStore = create<ChecklistState>((set, get) => ({
       itemId: item.id,
       valeur,
       photoUrl,
+      // Affichage immédiat ; la conformité enregistrée est recalculée par l'API.
+      conforme: item.requiertValeur ? estConforme(item, valeur) : undefined,
       timestamp: new Date().toISOString(),
       statut: "valide",
       syncStatus: "local",

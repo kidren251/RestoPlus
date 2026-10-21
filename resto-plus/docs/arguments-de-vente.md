@@ -165,6 +165,38 @@ personnel contourne l'outil.
 
 ---
 
+## 5. Un plan HACCP prêt pour le contrôle sanitaire
+
+**Le problème du client**
+Le classeur HACCP papier est rempli en fin de journée, de mémoire, quand il l'est. Un
+frigo à +6 °C passe inaperçu. Le jour du contrôle (DDPP), il faut retrouver les feuilles,
+et rien ne prouve qu'elles n'ont pas été recopiées après coup.
+
+**Notre réponse**
+- Les relevés se font sur le téléphone, au moment du contrôle, avec l'heure exacte —
+  même sans réseau.
+- Chaque point chiffré a ses seuils : un frigo à +6 °C s'affiche **en rouge** dès la
+  saisie et le relevé est marqué non conforme automatiquement.
+- Un relevé ne s'efface jamais : on peut le refaire, l'ancien reste dans l'historique.
+- Le chef de cuisine adapte lui-même le plan à son établissement ; chaque modification
+  est tracée.
+
+**Ce qui le rend crédible techniquement**
+- La conformité est calculée par le serveur, pas par le téléphone ; un relevé ne peut
+  pas être modifié, même directement en base.
+- Chaque relevé garde une copie du seuil en vigueur ce jour-là : l'historique reste juste
+  même si le plan change.
+- Plan de départ inspiré du guide de bonnes pratiques d'hygiène du restaurateur, adapté
+  au PMS de chaque client lors de l'installation.
+
+**Phrase d'accroche**
+*« Le jour du contrôle, vous ouvrez l'application : tout est là, à l'heure près. »*
+
+> Ne jamais présenter le plan de démonstration comme « conforme » : il doit être adapté
+> au PMS du client et validé par un professionnel de l'hygiène.
+
+---
+
 # Facturation (pistes de travail)
 
 Idée de départ : **facturer au nombre d'utilisateurs** de l'écosystème d'un
