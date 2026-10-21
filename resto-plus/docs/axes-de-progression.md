@@ -43,8 +43,9 @@ Dernière mise à jour : 21 octobre 2026 (socle de tests de l'API)
 Objectif : les données survivent à un redémarrage, et on se connecte avec de vrais comptes.
 
 ### Persistance Supabase
-- [ ] Créer le projet Supabase (dev) et appliquer les migrations `0001` à `0013`
-- [ ] Vérifier que les migrations passent dans l'ordre sur une base vierge
+- [ ] Créer le projet Supabase (dev) et appliquer les migrations `0001` à `0014` — projet
+      `restau-plus.v1-dev` créé (Paris), clés dans `backend/api/.env` ; reste : `yarn workspace @resto-plus/api db:migrate`
+- [x] Vérifier que les migrations passent dans l'ordre sur une base vierge (`db:migrate --a-blanc`) — 21/10/2026, branche `feat/p1-supabase-schema`
 - [ ] Créer une couche d'accès aux données par domaine (`backend/api/src/repositories/`),
       avec la même interface en mémoire (tests) et Supabase (réel)
 - [ ] Brancher les routes une par une sur cette couche :
@@ -63,7 +64,9 @@ Objectif : les données survivent à un redémarrage, et on se connecte avec de 
 - [ ] Relancer les tests d'isolation en mode Supabase
 
 ### Authentification unifiée
-- [ ] Choisir un seul mécanisme : **Supabase Auth** (recommandé)
+- [x] Choisir un seul mécanisme : **Supabase Auth** — `users` devient le profil de
+      `auth.users` (même id, créé par trigger), niveau et département seulement dans
+      `restaurant_members` (`0014`) — 21/10/2026, branche `feat/p1-supabase-schema`
 - [ ] Activation par code `RP-XXXX-XXXX` : crée l'utilisateur Supabase + la ligne
       `restaurant_members`
 - [ ] Connexion : renvoie une session (jeton) au lieu d'une simple identité
@@ -171,8 +174,9 @@ Fondations posées : `packages/types/src/{departements,lieux,pms,etablissement}.
 
 ### Étape A — Départements en données (à faire PENDANT P1)
 - [x] Catalogue des types de départements et de leurs modules (`departements.ts`)
-- [ ] Table `departements` par établissement + migration qui remplace les
-      `check (pole in ('salle', 'cuisine'))` des migrations 0008 à 0013
+- [x] Table `departements` par établissement + migration qui remplace les
+      `check (pole in ('salle', 'cuisine'))` des migrations 0008 à 0013 (`0014`, colonnes
+      `pole` → `departement` avec clé étrangère vers un département activé) — 21/10/2026, branche `feat/p1-supabase-schema`
 - [ ] Remplacer le type fermé `Pole` par `TypeDepartement` dans l'app et l'API
       (une vingtaine de fichiers)
 - [ ] Matrice des droits : règles par module (`tickets.traiter` vaut pour le département
