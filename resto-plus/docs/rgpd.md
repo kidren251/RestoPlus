@@ -42,6 +42,14 @@ Les durées « clients », « messages » et « anciens membres » se règlent p
 - **Ces fonctions ne sont appelables que par l'API** (clé `service_role`), jamais avec
   la clé publique de l'app.
 
+## Allergies : sujet mis en attente (21/10/2026)
+
+La dimension médicale (données de santé, art. 9) est lourde à gérer légalement : à
+rediscuter avant de développer quoi que ce soit côté app. Piste à étudier : ne plus
+garder les allergies sur la **fiche client** (durable), seulement sur la **réservation**
+(le temps du service, puis effacées), ce qui réduit fortement les obligations. En
+attendant, la contrainte de `0015` empêche d'enregistrer une allergie sans consentement.
+
 ## Exception assumée : le journal d'audit
 
 Le journal d'audit est infalsifiable (`0012`) : on ne peut pas y remplacer un nom.
