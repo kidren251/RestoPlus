@@ -201,12 +201,16 @@ export const useSalleStore = create<SalleState>((set, get) => ({
   serviceStates: MOCK_SERVICE_STATES,
   alerts: [],
 
-  loadSalle: async (_salleId?: string) => {
+  loadSalle: async (salleId?: string) => {
     set({ isLoading: true, error: null });
     try {
       // Tentative réseau, fallback sur mock
       try {
-        const data = await api.get<Salle>("/salles/salle-1");
+        // Identifiants en base = uuid : on prend la salle demandée, sinon la première
+        // salle du restaurant.
+        const id = salleId ?? (await api.get<Pick<Salle, "id">[]>("/salles"))[0]?.id;
+        if (!id) throw new Error("Aucune salle pour ce restaurant");
+        const data = await api.get<Salle>(`/salles/${id}`);
         const serviceStates = data.tables.reduce<Record<string, TableServiceState>>((states, table) => {
           if (table.serviceState) states[table.id] = table.serviceState;
           return states;

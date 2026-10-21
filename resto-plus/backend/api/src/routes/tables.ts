@@ -2,15 +2,15 @@ import type { FastifyInstance } from "fastify";
 import type { DishServiceStatus, ServiceCourse, StatutTable } from "@resto-plus/types";
 import { requirePermission } from "../permissions";
 import { restaurantDe } from "../tenant";
-import { tableDuRestaurant } from "./salles";
 import { journaliser } from "../audit";
-import { journalAdditions, tableInfos, tablePositions, tableServices, tableStatuts } from "./tableState";
+import { repositories } from "../repositories";
+import { journalAdditions } from "./tableState";
 
 export async function tablesRoutes(app: FastifyInstance) {
   // Toutes les routes /tables/:id de ce module : la table doit appartenir au restaurant.
   app.addHook("preHandler", async (req, reply) => {
     const { id } = req.params as { id?: string };
-    if (id && !tableDuRestaurant(id, restaurantDe(req))) {
+    if (id && !(await repositories.salles.tableExiste(restaurantDe(req), id))) {
       return reply.status(404).send({ error: "Table introuvable" });
     }
   });
@@ -28,7 +28,7 @@ export async function tablesRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Statut invalide" });
     }
 
-    tableStatuts[id] = statut;
+    await repositories.salles.changerStatut(restaurantDe(req), id, statut);
     return { id, statut, updatedAt: new Date().toISOString() };
   });
 
@@ -44,7 +44,7 @@ export async function tablesRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "x et y doivent être des nombres" });
     }
 
-    tablePositions[id] = { x, y };
+    await repositories.salles.deplacer(restaurantDe(req), id, x, y);
     return { id, x, y, updatedAt: new Date().toISOString() };
   });
 
@@ -61,12 +61,11 @@ export async function tablesRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "La capacité doit être un entier positif" });
     }
 
-    tableInfos[req.params.id] = {
-      ...(tableInfos[req.params.id] ?? {}),
+    const infos = await repositories.salles.modifierInfos(restaurantDe(req), req.params.id, {
       ...(nom === undefined ? {} : { nom: nom.trim() }),
       ...(capacite === undefined ? {} : { capacite }),
-    };
-    return { id: req.params.id, ...tableInfos[req.params.id], updatedAt: new Date().toISOString() };
+    });
+    return { id: req.params.id, ...infos, updatedAt: new Date().toISOString() };
   });
 
   // PUT /tables/:id/service
@@ -87,27 +86,21 @@ export async function tablesRoutes(app: FastifyInstance) {
     if (req.body.allergenes?.length && !req.body.allergenesSignalesAt) {
       return reply.status(400).send({ error: "Allergies non signalées par le client" });
     }
-    tableServices[req.params.id] = {
+    return repositories.salles.ecrireService(restaurantDe(req), {
       ...req.body,
       tableId: req.params.id,
       lastEventAt: new Date().toISOString(),
-    };
-    return tableServices[req.params.id];
+    });
   });
 
   app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/open", { preHandler: requirePermission("service.suivre") }, async (req) => {
-    tableStatuts[req.params.id] = "occupee";
+    await repositories.salles.changerStatut(restaurantDe(req), req.params.id, "occupee");
     return { tableId: req.params.id, status: "occupee", openedAt: req.body.occurredAt };
   });
 
   app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/bill", { preHandler: requirePermission("service.addition") }, async (req) => {
-    tableStatuts[req.params.id] = "a_nettoyer";
-    // Repas terminé : les allergies ne sont plus conservées.
-    const service = tableServices[req.params.id];
-    if (service) {
-      delete service.allergenes;
-      delete service.allergenesSignalesAt;
-    }
+    // Repas terminé : table à nettoyer, les allergies ne sont plus conservées.
+    await repositories.salles.terminerRepas(restaurantDe(req), req.params.id);
     journalAdditions.push({ tableId: req.params.id, restaurantId: restaurantDe(req), at: new Date().toISOString() });
     journaliser(req, "service.addition", { cible: { type: "table", id: req.params.id } });
     return { tableId: req.params.id, status: "a_nettoyer", billedAt: req.body.occurredAt };

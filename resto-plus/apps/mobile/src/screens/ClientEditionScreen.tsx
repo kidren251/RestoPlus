@@ -12,6 +12,7 @@ export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBa
   const canEditClient = !serviceLocked && allows("client.editer");
   const canOrder = !serviceLocked && allows("service.commander");
   const service = useSalleStore((state) => state.serviceStates[tableId]);
+  const nomTable = useSalleStore((state) => state.salle?.tables.find((t) => t.id === tableId)?.nom) ?? "Table";
   const saveClient = useSalleStore((state) => state.saveClient);
   const sendAddition = useSalleStore((state) => state.sendAddition);
   const commande = useSalleStore((state) => state.commandes[tableId]);
@@ -57,7 +58,7 @@ export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBa
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>TABLE {tableId.replace("t", "")}</Text>
+      <Text style={styles.eyebrow}>{nomTable.toUpperCase()}</Text>
       <Text style={styles.title}>Édition client</Text>
       <Text style={styles.subtitle}>{canEditClient ? "Créer ou compléter la fiche du client installé à cette table." : "Fiche du client installé à cette table (consultation)."}</Text>
 
