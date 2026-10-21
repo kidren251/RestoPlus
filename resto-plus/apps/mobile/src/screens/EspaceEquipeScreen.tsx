@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
+import { usePermissions } from "../hooks/usePermissions";
 
 type EspaceEquipe = "cuisine" | "salle" | "direction";
 
@@ -56,13 +57,14 @@ const ADMIN_MARKS: Record<string, string> = {
   journal_audit: "⌕",
 };
 
-export function EspaceEquipeScreen({ espace, onNavigate, canManageAccess = false, canManageLayout = false, canManageInvitations = false, canValidateReport = false }: { espace: EspaceEquipe; onNavigate: (destination: string) => void; canManageAccess?: boolean; canManageLayout?: boolean; canManageInvitations?: boolean; canValidateReport?: boolean }) {
+export function EspaceEquipeScreen({ espace, onNavigate }: { espace: EspaceEquipe; onNavigate: (destination: string) => void }) {
+  const allows = usePermissions();
   const content = ESPACES[espace];
   const actions = content.actions.filter((action) =>
-    (action.id !== "gestion_acces" || canManageAccess) &&
-    (action.id !== "configurateur_salle" || canManageLayout) &&
-    (action.id !== "inviter_equipier" || canManageInvitations) &&
-    (action.id !== "compte_rendu" || canValidateReport)
+    (action.id !== "gestion_acces" || allows("acces.gerer")) &&
+    (action.id !== "configurateur_salle" || allows("salle.configurer")) &&
+    (action.id !== "inviter_equipier" || allows("invitation.creer")) &&
+    (action.id !== "compte_rendu" || allows(espace === "cuisine" ? "compte_rendu.cuisine" : "compte_rendu.salle"))
   );
   const adminActionIds = Object.keys(ADMIN_MARKS);
   const operationalActions = actions.filter((action) => !adminActionIds.includes(action.id));

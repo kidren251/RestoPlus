@@ -12,6 +12,7 @@ import {
 import { colors, typography, radii, spacing } from "@resto-plus/ui-luxury";
 import type { Reservation } from "@resto-plus/types";
 import { api } from "../api/client";
+import { usePermissions } from "../hooks/usePermissions";
 import { enqueueSync } from "../store/syncStore";
 
 // Données mockées — sera remplacé par l'API Supabase Phase 2
@@ -77,7 +78,8 @@ const ALLERGENE_COLORS: Record<string, string> = {
   "fruits de mer": "#A8DAD0",
 };
 
-export function ReservationsScreen({ canEdit }: { canEdit: boolean }) {
+export function ReservationsScreen() {
+  const canEdit = usePermissions()("reservation.gerer");
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);

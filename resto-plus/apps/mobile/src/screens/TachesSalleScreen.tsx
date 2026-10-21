@@ -2,8 +2,10 @@ import React, { useEffect } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import { PeriodeTache, useTachesSalleStore } from "../store/tachesSalleStore";
+import { usePermissions } from "../hooks/usePermissions";
 
-export function TachesSalleScreen({ canReset }: { canReset: boolean }) {
+export function TachesSalleScreen() {
+  const canReset = usePermissions()("taches.reinitialiser");
   const { taches, cochees, isLoading, hydrate, toggle, reset } = useTachesSalleStore();
 
   useEffect(() => {

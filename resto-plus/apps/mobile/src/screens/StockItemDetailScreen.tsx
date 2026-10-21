@@ -4,6 +4,7 @@ import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import type { StockMovementType } from "@resto-plus/types";
 import { useStockStore } from "../store/stockStore";
 import { useMenuStore } from "../store/menuStore";
+import { usePermissions } from "../hooks/usePermissions";
 
 const TYPES: { id: StockMovementType; label: string; signe: string }[] = [
   { id: "reception", label: "Réception", signe: "+" },
@@ -19,7 +20,10 @@ const TYPE_LABEL: Record<StockMovementType, string> = {
   ajustement: "Ajustement",
 };
 
-export function StockItemDetailScreen({ itemId, canEntree, canSortie, onDeleted }: { itemId: string; canEntree: boolean; canSortie: boolean; onDeleted: () => void }) {
+export function StockItemDetailScreen({ itemId, onDeleted }: { itemId: string; onDeleted: () => void }) {
+  const allows = usePermissions();
+  const canEntree = allows("stock.entree");
+  const canSortie = allows("stock.sortie");
   const item = useStockStore((state) => state.items.find((candidate) => candidate.id === itemId));
   const historique = useStockStore((state) => state.movementsByItem[itemId] ?? []);
   const loadHistorique = useStockStore((state) => state.loadHistorique);

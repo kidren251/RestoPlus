@@ -3,21 +3,14 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import { useSalleStore } from "../store/salleStore";
 import { useMenuStore } from "../store/menuStore";
+import { usePermissions, useServiceLocked } from "../hooks/usePermissions";
 
-export function ClientEditionScreen({
-  tableId,
-  onBack,
-  canEditClient,
-  canOrder,
-  serviceLocked,
-}: {
-  tableId: string;
-  onBack: () => void;
-  canEditClient: boolean;
-  canOrder: boolean;
+export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBack: () => void }) {
+  const allows = usePermissions();
   /** Verrou de service du directeur : explique pourquoi les actions sont masquées. */
-  serviceLocked: boolean;
-}) {
+  const serviceLocked = useServiceLocked();
+  const canEditClient = !serviceLocked && allows("client.editer");
+  const canOrder = !serviceLocked && allows("service.commander");
   const service = useSalleStore((state) => state.serviceStates[tableId]);
   const saveClient = useSalleStore((state) => state.saveClient);
   const sendAddition = useSalleStore((state) => state.sendAddition);

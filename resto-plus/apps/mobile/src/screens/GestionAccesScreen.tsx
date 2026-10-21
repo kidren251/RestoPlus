@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import type { AccessRole, Pole } from "@resto-plus/types";
 import { api } from "../api/client";
+import { usePermissions } from "../hooks/usePermissions";
 
 type Member = { id: string; name: string; role: AccessRole; pole: Pole; status: "actif" | "temporaire" | "expire"; expiresAt?: string };
 
@@ -27,7 +28,10 @@ const POLE_LABEL: Record<Pole, string> = {
   direction: "Direction (accès aux deux)",
 };
 
-export function GestionAccesScreen({ onBack, onInvite, canChangePole }: { onBack: () => void; onInvite?: () => void; canChangePole: boolean }) {
+export function GestionAccesScreen({ onBack, onInvite: onInviteProp }: { onBack: () => void; onInvite: () => void }) {
+  const allows = usePermissions();
+  const onInvite = allows("invitation.creer") ? onInviteProp : undefined;
+  const canChangePole = allows("acces.changer_pole");
   const [members, setMembers] = useState(INITIAL_MEMBERS);
 
   useFocusEffect(

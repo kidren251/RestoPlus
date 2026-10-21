@@ -1,0 +1,31 @@
+import type { PoleService } from "@resto-plus/types";
+
+export type RootStackParamList = {
+  Login: undefined;
+  Accueil: undefined;
+  PlanSalle: undefined;
+  Checklist: undefined;
+  Reservations: undefined;
+  TachesSalle: undefined;
+  ClientEdition: { tableId: string };
+  ConfigurateurSalle: undefined;
+  EspaceCuisine: undefined;
+  EspaceSalle: undefined;
+  CommandesCuisine: undefined;
+  Stock: undefined;
+  StockItem: { itemId: string };
+  Menu: undefined;
+  Messagerie: undefined;
+  Conversation: { conversationId: string; titre: string };
+  InviterEquipier: undefined;
+  ScannerInvitation: undefined;
+  GestionAcces: undefined;
+  DevCreator: undefined;
+  ActivationCompte: undefined;
+  EspaceDirection: undefined;
+  CompteRendu: { pole: PoleService };
+  ComptesRendusRecus: undefined;
+  ComptesEquipe: undefined;
+  Delegations: undefined;
+  JournalAudit: undefined;
+};

@@ -4,6 +4,7 @@ import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import type { MenuItem, MenuItemIngredient } from "@resto-plus/types";
 import { useMenuStore } from "../store/menuStore";
 import { useStockStore } from "../store/stockStore";
+import { usePermissions } from "../hooks/usePermissions";
 
 function margeInfo(marge: number | undefined, prixVente: number): { label: string; color: string } {
   if (marge === undefined) return { label: "Marge inconnue", color: colors.textMuted };
@@ -12,7 +13,8 @@ function margeInfo(marge: number | undefined, prixVente: number): { label: strin
   return { label: `Marge ${marge.toFixed(2)} €`, color: colors.statusFree };
 }
 
-export function MenuScreen({ canManage }: { canManage: boolean }) {
+export function MenuScreen() {
+  const canManage = usePermissions()("carte.gerer");
   const items = useMenuStore((state) => state.items);
   const loadMenu = useMenuStore((state) => state.loadMenu);
   const ajouterPlat = useMenuStore((state) => state.ajouterPlat);
