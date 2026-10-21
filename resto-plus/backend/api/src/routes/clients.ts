@@ -8,7 +8,6 @@ const MOCK_CLIENTS = [
     nom: "M. Fontaine",
     telephone: "+33 6 00 00 00 01",
     preferences: "Table calme",
-    allergies: [],
     notes: "Anniversaire signalé lors de la réservation",
     createdAt: "2025-04-12T10:00:00.000Z",
     lastVisitAt: "2026-09-09T19:42:00.000Z",
@@ -16,8 +15,7 @@ const MOCK_CLIENTS = [
   {
     id: "client-beaumont",
     nom: "Mme Beaumont",
-    allergies: ["gluten", "lactose"],
-    notes: "Vérifier les allergènes à chaque service",
+    notes: "Demander ses allergies à chaque repas",
     createdAt: "2025-07-20T10:00:00.000Z",
     lastVisitAt: "2026-09-09T20:08:00.000Z",
   },

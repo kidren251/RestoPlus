@@ -104,7 +104,9 @@ ou d'une demande d'effacement, le restaurateur ne sait ni ce qu'il détient, ni 
 quand.
 
 **Notre réponse**
-- Les allergies ne s'enregistrent qu'avec le **consentement du client**, daté.
+- Les allergies servent **le temps du repas**, puis disparaissent : aucun dossier
+  médical à garder ni à protéger. Elles ne s'enregistrent que si le client les a
+  signalées lui-même.
 - Chaque nuit, l'application **anonymise d'elle-même** les clients qui ne sont pas
   revenus depuis 3 ans, les anciens messages et les employés partis.
 - Une demande d'effacement se traite **en un geste**, sans fausser le chiffre
@@ -112,14 +114,15 @@ quand.
 - Données hébergées **à Paris**.
 
 **Ce qui le rend crédible techniquement**
-- Les règles sont dans la base de données elle-même (contrainte de consentement,
-  purge automatique programmée), pas dans un réglage qu'on oublie d'activer.
+- Les règles sont dans la base de données elle-même (allergies refusées sans
+  signalement du client et effacées à la fin du repas, purge automatique programmée),
+  pas dans un réglage qu'on oublie d'activer.
 - Durées de conservation réglables par établissement ; registre des traitements prêt
   à présenter (`docs/rgpd.md`).
 
 **Phrase d'accroche**
-*« Vos clients vous confient leurs allergies. Resto Plus s'assure que vous en avez le
-droit, et que vous ne les gardez pas plus longtemps que nécessaire. »*
+*« Vos clients vous confient leurs allergies pour un repas. Resto Plus les donne à
+votre équipe le temps du service, puis les oublie. »*
 
 > À n'utiliser commercialement qu'après validation juridique des durées et des bases
 > légales (voir `docs/rgpd.md`, « À faire valider »).

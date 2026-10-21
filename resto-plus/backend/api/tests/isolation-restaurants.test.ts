@@ -71,7 +71,7 @@ describe("le restaurant B ne voit rien de A", () => {
 describe("le restaurant B ne peut rien toucher chez A", () => {
   it.each([
     ["lire un client de A", "GET", "/clients/client-fontaine", "salle2", undefined],
-    ["écraser un client de A", "POST", "/clients", "salle2", { id: "client-fontaine", nom: "Piraté", allergies: [], createdAt: "", lastVisitAt: "" }],
+    ["écraser un client de A", "POST", "/clients", "salle2", { id: "client-fontaine", nom: "Piraté", createdAt: "", lastVisitAt: "" }],
     ["lire la salle de A", "GET", "/salles/salle-1", "salle2", undefined],
     ["déplacer une table de A", "PUT", "/tables/t1/position", "salle2", { x: 0, y: 0 }],
     ["changer le service d'une table de A", "PUT", "/tables/t1/service", "salle2", { tableId: "t1", course: "plat", dishStatus: "servi" }],

@@ -1,4 +1,5 @@
--- RGPD : durées de conservation, anonymisation et purge automatique.
+-- RGPD : allergies limitées au repas, durées de conservation, anonymisation et purge
+-- automatique.
 -- Registre et décisions à faire valider : docs/rgpd.md.
 --
 -- Principe : on ANONYMISE plutôt que de supprimer. Les lignes restent (chiffre
@@ -17,16 +18,60 @@ alter table restaurants
   add column conservation_anciens_membres_mois smallint not null default 12
     check (conservation_anciens_membres_mois between 0 and 120);
 
--- ─── 2. Clients : allergies = données de santé (article 9 du RGPD) ───────────────
--- Elles ne peuvent être enregistrées qu'avec le consentement explicite du client,
--- dont on garde la date.
-alter table clients
-  add column consentement_allergies_at timestamptz,
-  add column anonymise_at timestamptz,
-  add constraint clients_allergies_consenties
-    check (cardinality(allergies) = 0 or consentement_allergies_at is not null);
+-- ─── 2. Allergies : le temps du repas, jamais sur la fiche client ────────────────
+-- Les allergies sont des données de santé (article 9 du RGPD). Décision du 21/10/2026 :
+-- on ne les garde PAS sur la fiche client (dossier durable), seulement sur la
+-- réservation du repas concerné, et elles sont effacées dès que le repas est fini.
+-- Un client sans réservation (walk-in) a lui aussi une réservation, source 'walk_in'.
+alter table clients drop column allergies;
+alter table clients add column anonymise_at timestamptz;
 
-alter table reservations add column anonymise_at timestamptz;
+-- Le client signale lui-même ses allergies pour ce repas : c'est son consentement,
+-- dont on garde l'heure. Sans elle, la base refuse d'enregistrer des allergies.
+alter table reservations
+  add column allergenes_signales_at timestamptz,
+  add column anonymise_at timestamptz,
+  add constraint reservations_allergenes_signales
+    check (cardinality(allergenes) = 0 or allergenes_signales_at is not null);
+
+-- Effacement immédiat quand le repas se termine ou que la réservation est annulée.
+create or replace function reservations_effacer_allergenes_fin_repas()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status in ('terminee', 'annulee') then
+    new.allergenes := '{}';
+    new.allergenes_signales_at := null;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger reservations_effacer_allergenes
+  before insert or update of status on reservations
+  for each row execute function reservations_effacer_allergenes_fin_repas();
+
+-- Filet de sécurité (toutes les heures, voir § 6) : une table jamais clôturée dans
+-- l'app n'en garde pas moins ses allergies au-delà de sa journée de service.
+create or replace function effacer_allergenes_services_passes()
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  n integer;
+begin
+  update public.reservations set allergenes = '{}', allergenes_signales_at = null
+  where cardinality(allergenes) > 0
+    and coalesce(date_service, public.jour_de_service(heure, restaurant_id))
+        < public.jour_de_service(now(), restaurant_id);
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
 
 -- ─── 3. Membres : date de départ, base du délai d'anonymisation ──────────────────
 alter table users add column anonymise_at timestamptz;
@@ -67,14 +112,13 @@ as $$
     email = null,
     preferences = null,
     notes = null,
-    allergies = '{}',
-    consentement_allergies_at = null,
     anonymise_at = now()
   where id = p_client_id and anonymise_at is null;
 
   update public.reservations set
     nom_client = 'Client anonymisé',
     allergenes = '{}',
+    allergenes_signales_at = null,
     notes = null,
     anonymise_at = now()
   where client_id = p_client_id and anonymise_at is null;
@@ -143,7 +187,8 @@ begin
 
     -- Réservations anciennes sans fiche client (prises au téléphone, sans compte).
     update public.reservations set
-      nom_client = 'Client anonymisé', allergenes = '{}', notes = null, anonymise_at = now()
+      nom_client = 'Client anonymisé', allergenes = '{}', allergenes_signales_at = null,
+      notes = null, anonymise_at = now()
     where restaurant_id = r.id and client_id is null and anonymise_at is null and heure < limite;
     get diagnostics n = row_count;
     reservations_anonymisees := reservations_anonymisees + n;
@@ -181,9 +226,10 @@ begin
 end;
 $$;
 
--- ─── 6. Exécution quotidienne (pg_cron, fourni par Supabase) ─────────────────────
+-- ─── 6. Exécution automatique (pg_cron, fourni par Supabase) ─────────────────────
 create extension if not exists pg_cron;
 select cron.schedule('rgpd-purge-quotidienne', '30 3 * * *', 'select public.rgpd_purger()');
+select cron.schedule('allergenes-fin-de-service', '0 * * * *', 'select public.effacer_allergenes_services_passes()');
 
 -- ─── 7. Ces fonctions ne sont appelables QUE par l'API (clé service_role) ────────
 -- Supabase expose toute fonction du schéma public en RPC à la clé publique (anon) et
@@ -196,13 +242,16 @@ revoke execute on function
   public.rgpd_purger(),
   public.rgpd_anonymiser_client(uuid),
   public.rgpd_anonymiser_membre(uuid, uuid),
+  public.effacer_allergenes_services_passes(),
   public.creer_profil_utilisateur(),
-  public.membres_dater_desactivation()
+  public.membres_dater_desactivation(),
+  public.reservations_effacer_allergenes_fin_repas()
 from public, anon, authenticated;
 
 grant execute on function
   public.audit_purger_expires(),
   public.rgpd_purger(),
   public.rgpd_anonymiser_client(uuid),
-  public.rgpd_anonymiser_membre(uuid, uuid)
+  public.rgpd_anonymiser_membre(uuid, uuid),
+  public.effacer_allergenes_services_passes()
 to service_role;

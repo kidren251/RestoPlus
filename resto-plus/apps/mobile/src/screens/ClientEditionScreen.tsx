@@ -17,7 +17,10 @@ export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBa
   const commande = useSalleStore((state) => state.commandes[tableId]);
   const [nom, setNom] = useState(service?.client?.nom ?? service?.clientName ?? "");
   const [telephone, setTelephone] = useState(service?.client?.telephone ?? "");
-  const [allergies, setAllergies] = useState(service?.client?.allergies?.join(", ") ?? "");
+  const [allergies, setAllergies] = useState(service?.allergenes?.join(", ") ?? "");
+  /** Le client a signalé lui-même ses allergies pour ce repas (son consentement). */
+  const [signaleParClient, setSignaleParClient] = useState(!!service?.allergenesSignalesAt);
+  const [erreurFiche, setErreurFiche] = useState("");
   const [notes, setNotes] = useState(service?.client?.notes ?? "");
 
   const menuItems = useMenuStore((state) => state.items);
@@ -34,18 +37,20 @@ export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBa
     setCommandeError(result.ok ? "" : result.error);
   };
 
-  const enregistrer = () => {
-    if (!nom.trim()) return;
-    saveClient(tableId, {
-      nom: nom.trim(),
-      telephone: telephone.trim(),
-      allergies: allergies.split(",").map((value) => value.trim()).filter(Boolean),
-      notes: notes.trim(),
-    });
+  const enregistrer = (): boolean => {
+    if (!nom.trim()) return false;
+    const allergenes = allergies.split(",").map((value) => value.trim()).filter(Boolean);
+    if (allergenes.length > 0 && !signaleParClient) {
+      setErreurFiche("Cochez « signalées par le client » pour enregistrer des allergies.");
+      return false;
+    }
+    setErreurFiche("");
+    saveClient(tableId, { nom: nom.trim(), telephone: telephone.trim(), notes: notes.trim() }, allergenes);
+    return true;
   };
 
   const envoyerAddition = () => {
-    enregistrer();
+    if (!enregistrer()) return;
     sendAddition(tableId);
     onBack();
   };
@@ -62,8 +67,17 @@ export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBa
       <Text style={styles.label}>Téléphone</Text>
       <TextInput style={styles.input} value={telephone} onChangeText={setTelephone} editable={canEditClient} keyboardType="phone-pad" placeholder="Optionnel" />
 
-      <Text style={styles.label}>Allergies</Text>
+      <Text style={styles.label}>Allergies pour ce repas</Text>
       <TextInput style={styles.input} value={allergies} onChangeText={setAllergies} editable={canEditClient} placeholder="Séparer par des virgules" />
+      {canEditClient && (
+        <Pressable style={styles.consentRow} onPress={() => setSignaleParClient((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: signaleParClient }}>
+          <View style={[styles.checkbox, signaleParClient && styles.checkboxOn]}>
+            {signaleParClient && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+          <Text style={styles.consentText}>Signalées par le client lui-même, pour ce repas</Text>
+        </Pressable>
+      )}
+      <Text style={styles.hint}>Non conservées : effacées à l’envoi de l’addition.</Text>
 
       <Text style={styles.label}>Notes client</Text>
       <TextInput style={[styles.input, styles.notesInput]} value={notes} onChangeText={setNotes} editable={canEditClient} multiline placeholder="Préférences, occasion, attention particulière..." />
@@ -89,6 +103,7 @@ export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBa
       </>
       )}
       {!!commandeError && <Text style={styles.error}>{commandeError}</Text>}
+      {!!erreurFiche && <Text style={styles.error}>{erreurFiche}</Text>}
       {commande && commande.lignes.length > 0 && (
         <View style={styles.commandeList}>
           {commande.lignes.map((ligne) => (
@@ -99,7 +114,7 @@ export function ClientEditionScreen({ tableId, onBack }: { tableId: string; onBa
 
       {canEditClient && (
         <>
-          <Pressable style={styles.saveButton} onPress={enregistrer}>
+          <Pressable style={styles.saveButton} onPress={() => enregistrer()}>
             <Text style={styles.saveLabel}>Enregistrer la fiche</Text>
           </Pressable>
           <Pressable style={styles.billButton} onPress={envoyerAddition}>
@@ -123,6 +138,12 @@ const styles = StyleSheet.create({
   label: { color: colors.textMuted, fontSize: 10, marginTop: spacing.md, marginBottom: 5 },
   input: { borderWidth: 1, borderColor: colors.creamBorder, borderRadius: radii.card, backgroundColor: colors.creamLight, color: colors.navy, paddingHorizontal: spacing.md, paddingVertical: 11 },
   notesInput: { minHeight: 86, textAlignVertical: "top" },
+  consentRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.sm },
+  checkbox: { width: 18, height: 18, borderWidth: 1, borderColor: colors.navy, borderRadius: 4, alignItems: "center", justifyContent: "center", marginRight: spacing.sm },
+  checkboxOn: { backgroundColor: colors.navy },
+  checkmark: { color: colors.gold, fontSize: 11, fontWeight: "700" },
+  consentText: { color: colors.navy, fontSize: 12, flex: 1 },
+  hint: { color: colors.textMuted, fontSize: 10, marginTop: 4 },
   sectionLabel: { color: colors.gold, fontSize: 9, letterSpacing: typography.tracking.label, marginTop: spacing.xl, marginBottom: spacing.sm },
   menuList: { borderTopWidth: 1, borderTopColor: colors.creamBorder },
   menuRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: spacing.sm + 4, borderBottomWidth: 1, borderBottomColor: colors.creamBorder },

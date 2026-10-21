@@ -67,7 +67,8 @@ export interface Client {
   telephone?: string;
   email?: string;
   preferences?: string;
-  allergies?: string[];
+  // Pas d'allergies sur la fiche client (donnée de santé) : elles sont portées par le
+  // repas (TableServiceState / Reservation) et effacées à sa fin. Voir docs/rgpd.md.
   notes?: string;
   createdAt: string;
   lastVisitAt?: string;
@@ -104,6 +105,10 @@ export interface TableServiceState {
   clientId?: string;
   clientName?: string;
   client?: Client;
+  /** Allergies signalées par le client pour CE repas ; effacées à l'addition. */
+  allergenes?: string[];
+  /** Heure à laquelle le client les a signalées (son consentement). */
+  allergenesSignalesAt?: string;
   course: ServiceCourse;
   dishStatus: DishServiceStatus;
   seatedAt?: string;
@@ -151,6 +156,7 @@ export interface Reservation {
   nomClient: string;
   couverts: number;
   heure: string;
+  /** Allergies pour ce repas, signalées par le client ; effacées à la fin du repas. */
   allergenes: string[];
   notes?: string;
   source?: "telephone" | "site" | "email" | "walk_in" | "conciergerie";
