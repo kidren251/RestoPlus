@@ -27,6 +27,7 @@ const LIBELLE_ACTION: Record<AuditAction, string> = {
   "compte.messagerie": "Accès messagerie modifié",
   "delegation.creee": "Délégation accordée",
   "delegation.revoquee": "Délégation terminée",
+  "droits.reglages_modifies": "Droits du service réglés (N4)",
   "invitation.creee": "Invitation intérimaire créée",
   "invitation.utilisee": "Invitation intérimaire utilisée",
   "connexion.reussie": "Connexion",

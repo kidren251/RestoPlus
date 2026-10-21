@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { colors, radii, spacing, typography } from "@resto-plus/ui-luxury";
 import { api } from "../api/client";
+import { DroitsDuService } from "../components/console-n4/DroitsDuService";
 
 const ACCESS_LEVELS = [
   { level: "N0", name: "Serveur", detail: "Opérations de salle autorisées" },
@@ -110,6 +111,9 @@ export function DevCreatorPanelScreen({ onBack }: { onBack: () => void }) {
         <ConfigToggle label="Isolation RLS" detail="Filtrer chaque donnée par restaurant_id" value={rlsEnabled} onChange={setRlsEnabled} />
         <ConfigToggle label="Synchronisation temps réel" detail="Partager les alertes entre appareils du restaurant" value={realtimeEnabled} onChange={setRealtimeEnabled} />
       </View>
+
+      <Text style={styles.sectionLabel}>DROITS DU SERVICE PAR ÉTABLISSEMENT</Text>
+      <DroitsDuService etablissements={universes} />
 
       <Text style={styles.sectionLabel}>NIVEAUX D'ACCÈS</Text>
       <View style={styles.levelList}>

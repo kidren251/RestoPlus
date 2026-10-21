@@ -27,13 +27,15 @@ interface PlanDeSalleProps {
   canEditService?: boolean;
   /** Réclamer un plat (droit "service.commander", hors verrou de service). */
   canRequestDish?: boolean;
+  /** Installer des clients / changer de table (droit "service.installer", hors verrou de service). */
+  canInstall?: boolean;
   onToggleLayoutLock?: () => void;
   onOpenConfigurator?: () => void;
   onTablePress?: (tableId: string) => void;
   onClientPress?: (tableId: string) => void;
 }
 
-export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, canEditService = false, canRequestDish = false, onToggleLayoutLock, onOpenConfigurator, onTablePress, onClientPress }: PlanDeSalleProps) {
+export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, canEditService = false, canRequestDish = false, canInstall = false, onToggleLayoutLock, onOpenConfigurator, onTablePress, onClientPress }: PlanDeSalleProps) {
   const salle = useSalleStore((s) => s.salle);
   const moveTable = useSalleStore((s) => s.moveTable);
   const selectTable = useSalleStore((s) => s.selectTable);
@@ -138,6 +140,7 @@ export default function PlanDeSalle({ isAdmin = false, layoutLocked = false, can
         table={panelTable}
         serviceState={panelTable ? serviceStates[panelTable.id] : undefined}
         canEditService={canEditService}
+        canInstall={canInstall}
         canEditLayout={isAdmin}
         canRequestDish={canRequestDish}
         onClientPress={onClientPress}

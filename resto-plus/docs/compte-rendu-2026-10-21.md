@@ -28,6 +28,8 @@ Ce travail était resté non commité : il l'a été en début de session.
 - **RGPD** : allergies limitées au repas, anonymisation, purges automatiques.
 - **Faille de sécurité trouvée et corrigée** (purge de l'audit appelable par tous).
 - **Plan de salle branché sur Supabase** : les données survivent au redémarrage.
+- **Réservations et clients branchés**, avec l'installation des clients en un geste.
+- **Droits du service réglables par établissement** depuis la console N4.
 
 ## Réalisations
 
@@ -97,44 +99,81 @@ Ce travail était resté non commité : il l'a été en début de session.
   la table.
 - `yarn dev:api` charge maintenant le `.env` : l'API de dev travaille sur Supabase.
 
+### Réservations, clients et gestes du service
+
+- Décisions : walk-in = réservation « sans résa » visible dans la liste du soir ;
+  annulation = statut « annulée » (pas de suppression) ; allergies saisissables dès la
+  réservation (case « signalées par le client ») ; installer et changer de table dès N0.
+- Panneau de la table : **Installer des clients** (réservation prévue ici en tête, ou
+  n'importe quelle réservation attendue — le client qui demande une autre table — ou
+  « Sans réservation » avec le nombre de couverts) et **Changer de table** (le repas,
+  les allergies et la réservation suivent). Fin de l'ouverture silencieuse d'une table
+  au toucher.
+- Formulaire de réservation : choix de la table parmi celles de la salle (ou « à
+  l'arrivée »), allergies + consentement. Badge « SANS RÉSA », nom des tables.
+- `ReservationsScreen` découpé (508 → 95 lignes) : `ReservationCard`, `ReservationForm`,
+  store partagé `reservationsStore`.
+- Base (`0017`) : heure locale convertie avec le fuseau du restaurant ; les trois
+  gestes (installer, changer de table, addition) sont des fonctions SQL exécutées en
+  une transaction ; le déroulé du dîner est enregistré (sans doublon si la file hors
+  ligne renvoie deux fois).
+- Identifiants générés par l'app en uuid (`expo-crypto`), pour fonctionner hors ligne.
+- **Bug trouvé par les tests sur la vraie base** : une mise à jour du repas sans la
+  réservation effaçait le lien table ↔ réservation (historique, changement de table et
+  addition cassés). Corrigé : seuls les gestes du service posent ce lien.
+
+### Droits réglables par le N4
+
+- 7 droits du service réglables par établissement (installer, commander, suivre le
+  dîner, addition, fiche client, réservations, tâches) ; les pôles et les droits
+  sensibles restent fixes. Validation stricte, modification inscrite au journal d'audit.
+- Console N4 : section « Droits du service par établissement » (N0 à N3, valeur par
+  défaut marquée). L'app charge les réglages à la connexion ; l'API les applique.
+- La console N4 est de nouveau accessible en mode démo sur la base de dev
+  (`REQUIRE_AUTH=false`) ; réservée à un vrai compte N4 dès que l'auth est exigée.
+
 ### Côté commercial
 
 - Argument de vente n° 3 : « Le RGPD géré par l'outil », avec une rubrique
   **Astuces** (réponse à l'objection « mes habitués devront redonner leurs
   allergies »).
+- Argument n° 4 : « L'outil s'adapte à votre organisation » (droits réglables, gestes
+  du service en un toucher).
 
 ## Points encore en prototype
 
-- Seul le plan de salle est en base : réservations, clients, stock, carte, messagerie,
-  comptes rendus, comptes, délégations et audit restent en mémoire.
+- En base : plan de salle, réservations, clients. Stock, carte, messagerie, comptes
+  rendus, comptes, délégations et audit restent en mémoire.
+- Installer un client hors ligne ouvre la table sur le téléphone sans réservation (pas
+  de rattachement automatique au retour du réseau).
+- L'écran Réservations n'a plus de liste de démo intégrée : sans API joignable, il est vide.
 - Connexion toujours par comptes de démo (pas encore de jeton Supabase) :
   `REQUIRE_AUTH=false` sur la base de dev.
-- Historique du dîner (entrée servie, plat servi…) pas encore enregistré en base : il
-  dépend du branchement des réservations.
-- Le formulaire de réservation ne permet pas encore de saisir les allergies.
 - Type `Pole` encore utilisé dans le code (la base dit déjà `departement`).
 
 ## Vérifications
 
-- 79 tests API en mémoire : au vert. 11 tests d'intégration sur la base de dev
-  (`test:supabase`) : au vert, dont la persistance après redémarrage de l'API.
+- 103 tests API en mémoire : au vert. 22 tests d'intégration sur la base de dev
+  (`test:supabase`) : au vert (persistance après redémarrage, gestes du service,
+  droits réglés par le N4, isolation).
 - Scénarios en base dans des transactions annulées : 0014 (8 contrôles), 0015
   (22 contrôles, dont les droits d'exécution de la clé publique).
 - `tsc --noEmit` : aucune erreur sur l'app et sur l'API.
-- Pas encore vérifié sur téléphone : case de consentement aux allergies, plan de salle
-  sur Supabase, écrans à droits après le refactor.
+- Pas encore vérifié sur téléphone : installer des clients / changer de table, formulaire
+  de réservation, console N4 (droits), case de consentement aux allergies, écrans à
+  droits après le refactor.
 
 ## Git
 
 Branches poussées et fusionnées dans `test` (jamais dans `main` sans feu vert) :
 `refactor/decoupage-gros-fichiers`, `chore/socle-tests-api`, `feat/p1-supabase-schema`,
-`feat/p1-branchement-salles`.
+`feat/p1-branchement-salles`, `feat/p1-reservations-clients`.
 
 ## Prochaine étape recommandée
 
-1. Brancher **réservations et clients** (règle aussi l'historique du dîner).
-2. Tester sur téléphone le lot du jour, puis fusionner `test` dans `main`.
-3. Continuer le branchement : checklists, délégations, carte, messagerie, stock,
-   comptes rendus, comptes, audit.
+1. Tester sur téléphone le lot du jour, puis fusionner `test` dans `main`.
+2. Continuer le branchement : checklists, délégations, carte et commandes, messagerie,
+   stock, comptes rendus, comptes, audit.
+3. Remplacer le type `Pole` par les départements dans le code.
 4. Supabase Auth (connexion avec jeton) et `REQUIRE_AUTH=true` par défaut.
 5. Faire valider par un juriste les points listés dans `docs/rgpd.md`.

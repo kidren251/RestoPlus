@@ -7,6 +7,7 @@ import { create } from "zustand";
 import type { Client, DishServiceStatus, DishWorkflowStatus, Salle, ServiceAlert, ServiceCourse, ServiceEvent, Table, TableServiceState, StatutTable } from "@resto-plus/types";
 import { api } from "../api/client";
 import { enqueueSync } from "./syncStore";
+import { nouvelId } from "../utils/identifiant";
 
 // Données mockées pour Expo Go (Phase 1 sans Supabase)
 const MOCK_SALLE: Salle = {
@@ -176,7 +177,10 @@ interface SalleState {
   moveTable: (tableId: string, x: number, y: number) => void;
   updateTableInfo: (tableId: string, updates: { nom?: string; capacite?: number }) => void;
   updateTableService: (tableId: string, updates: { course?: ServiceCourse; dishStatus?: DishServiceStatus }) => void;
+  /** Ouverture hors ligne, sans réservation (repli quand l'installation n'atteint pas le serveur). */
   openTable: (tableId: string) => void;
+  /** Applique le repas renvoyé par le serveur (installation, changement de table). */
+  appliquerRepas: (tableId: string, etat: TableServiceState | undefined, statut: StatutTable) => void;
   sendAddition: (tableId: string) => void;
   /** Fiche client + allergies du repas en cours (jamais stockées sur la fiche). */
   saveClient: (tableId: string, client: Pick<Client, "nom" | "telephone" | "notes">, allergenes: string[]) => void;
@@ -228,7 +232,11 @@ export const useSalleStore = create<SalleState>((set, get) => ({
   setStatutTable: (tableId, statut) => {
     set((state) => {
       if (!state.salle) return state;
+      // Table nettoyée : le repas précédent n'y est plus affiché (comme côté serveur).
+      const serviceStates = { ...state.serviceStates };
+      if (statut === "libre") delete serviceStates[tableId];
       return {
+        serviceStates,
         salle: {
           ...state.salle,
           tables: state.salle.tables.map((t) =>
@@ -284,6 +292,20 @@ export const useSalleStore = create<SalleState>((set, get) => ({
     enqueueSync("table_service_update", next);
   },
 
+  appliquerRepas: (tableId, etat, statut) => {
+    set((state) => {
+      const serviceStates = { ...state.serviceStates };
+      if (etat) serviceStates[tableId] = etat;
+      else delete serviceStates[tableId];
+      return {
+        serviceStates,
+        salle: state.salle
+          ? { ...state.salle, tables: state.salle.tables.map((table) => (table.id === tableId ? { ...table, statut } : table)) }
+          : state.salle,
+      };
+    });
+  },
+
   openTable: (tableId) => {
     const current = get().serviceStates[tableId] ?? { tableId, course: "aucun" as const, dishStatus: "aucun" as const };
     const occurredAt = new Date().toISOString();
@@ -294,7 +316,7 @@ export const useSalleStore = create<SalleState>((set, get) => ({
       seatedAt: current.seatedAt ?? occurredAt,
       lastEventAt: occurredAt,
       events: [...(current.events ?? []), {
-        id: `service-${tableId}-${Date.now()}`,
+        id: nouvelId(),
         reservationId: current.reservationId ?? `local-${tableId}`,
         tableId,
         type: "installation",
@@ -320,7 +342,7 @@ export const useSalleStore = create<SalleState>((set, get) => ({
       allergenesSignalesAt: undefined,
       lastEventAt: occurredAt,
       events: [...(current.events ?? []), {
-        id: `service-${tableId}-${Date.now()}`,
+        id: nouvelId(),
         reservationId: current.reservationId ?? `local-${tableId}`,
         tableId,
         type: "addition" as const,
@@ -339,7 +361,7 @@ export const useSalleStore = create<SalleState>((set, get) => ({
     const current = get().serviceStates[tableId] ?? { tableId, course: "entree" as const, dishStatus: "aucun" as const };
     const occurredAt = new Date().toISOString();
     const savedClient: Client = {
-      id: current.clientId ?? `client-${tableId}`,
+      id: current.clientId ?? nouvelId(),
       nom: client.nom,
       telephone: client.telephone,
       notes: client.notes,
@@ -490,10 +512,10 @@ function createServiceEvent(
   if (updates.dishStatus === "servi" && updates.dishStatus !== current.dishStatus) {
     const course = updates.course ?? current.course;
     const type = course === "entree" ? "entree_servie" : course === "plat" ? "plat_servi" : "dessert_servi";
-    return { id: `service-${current.tableId}-${Date.now()}`, reservationId: current.reservationId ?? `local-${current.tableId}`, tableId: current.tableId, type, label: `${course === "entree" ? "Entrée" : course === "plat" ? "Plat" : "Dessert"} servi`, occurredAt };
+    return { id: nouvelId(), reservationId: current.reservationId ?? `local-${current.tableId}`, tableId: current.tableId, type, label: `${course === "entree" ? "Entrée" : course === "plat" ? "Plat" : "Dessert"} servi`, occurredAt };
   }
   if (updates.dishStatus === "a_reclamer" && updates.dishStatus !== current.dishStatus) {
-    return { id: `service-${current.tableId}-${Date.now()}`, reservationId: current.reservationId ?? `local-${current.tableId}`, tableId: current.tableId, type: "note", label: "Plat à réclamer", occurredAt };
+    return { id: nouvelId(), reservationId: current.reservationId ?? `local-${current.tableId}`, tableId: current.tableId, type: "note", label: "Plat à réclamer", occurredAt };
   }
   return undefined;
 }

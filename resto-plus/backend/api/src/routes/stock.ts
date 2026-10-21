@@ -172,7 +172,7 @@ export async function stockRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string }; Body: { type: StockMovementType; quantite: number; motif?: string } }>(
     "/stock-items/:id/movements",
     async (req, reply) => {
-      if (!checkPermission(req, reply, req.body.type === "reception" ? "stock.entree" : "stock.sortie")) return;
+      if (!(await checkPermission(req, reply, req.body.type === "reception" ? "stock.entree" : "stock.sortie"))) return;
       if (!appartient(items.find((item) => item.id === req.params.id), req)) return reply.status(404).send({ error: "Article introuvable" });
       const result = applyStockMovement(req.params.id, req.body.type, req.body.quantite, req.body.motif, req.auth?.userId);
       if ("error" in result) return reply.status(result.status).send({ error: result.error });

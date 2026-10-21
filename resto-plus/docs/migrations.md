@@ -4,7 +4,7 @@ Aide-mémoire du schéma de la base. Les fichiers sont dans `backend/db/migratio
 appliqués dans l'ordre. **Une migration appliquée ne se modifie plus** : pour changer
 quelque chose, on en écrit une nouvelle.
 
-Dernière mise à jour : 21 octobre 2026 — 16 migrations, toutes appliquées sur la base
+Dernière mise à jour : 21 octobre 2026 — 17 migrations, toutes appliquées sur la base
 de dev (`restau-plus.v1-dev`, Paris).
 
 ## Commandes
@@ -60,12 +60,13 @@ rejoue jamais deux fois la même. Connexion : `SUPABASE_DB_URL` dans `backend/ap
 | 0014 | `auth_unifiee_departements` | `users` devient le **profil d'un compte Supabase Auth** (même identifiant, créé automatiquement). Les **départements** deviennent des données : table `departements` (catalogue : direction, salle, cuisine, maintenance, espaces verts, gouvernance), colonnes `pole` → `departement`. Clôture de journée générique : tous les départements dont le compte rendu est requis. |
 | 0015 | `rgpd` | **RGPD** : allergies seulement le temps du repas (jamais sur la fiche client, refusées sans signalement du client, effacées à la fin du repas) ; durées de conservation par établissement ; anonymisation à la demande ; purge automatique chaque nuit (3h30) et effacement des allergies toutes les heures. Ferme une faille : la purge de l'audit était appelable avec la clé publique. Détails : `docs/rgpd.md`. |
 | 0016 | `plan_de_salle` | Ce qu'il manquait pour brancher le plan de salle : nom et zone des tables, positions décimales, **décor** (`elements_decor`), **repas en cours** à chaque table (`etat_service_tables`). |
+| 0017 | `reservations_installation` | **Droits du service réglables** par établissement (`restaurants.reglages_droits`, console N4). Réservations : heure locale « 19:30 » convertie en instant exact avec le fuseau du restaurant (0h30 compte pour la veille). Trois **gestes du service** en une transaction chacun : `installer_clients` (réservation ou walk-in « sans résa »), `deplacer_repas` (changer de table), `terminer_repas` (addition). Nouveau type d'événement `changement_table`. |
 
 ## Les tables par thème
 
 | Thème | Tables |
 |---|---|
-| Établissement et équipe | `restaurants`, `departements`, `users` (profils), `restaurant_members`, `comptes_equipe`, `restaurant_invitations`, `delegations` |
+| Établissement et équipe | `restaurants` (dont les droits réglés par le N4), `departements`, `users` (profils), `restaurant_members`, `comptes_equipe`, `restaurant_invitations`, `delegations` |
 | Salle | `salles`, `tables_salle`, `elements_decor`, `etat_service_tables` |
 | Clients et service | `clients`, `reservations`, `service_events`, `commandes_plats` |
 | Cuisine | `stock_items`, `stock_movements`, `stock_alerts`, `menu_items`, `menu_item_ingredients`, `checklists`, `checklist_items`, `checklist_entries` |

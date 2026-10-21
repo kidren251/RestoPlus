@@ -1,96 +1,81 @@
 import type { FastifyInstance } from "fastify";
-import { jourDeService } from "@resto-plus/types";
+import type { Reservation } from "@resto-plus/types";
 import { requirePermission } from "../permissions";
 import { jourEffectif } from "../journeeStore";
-import { appartient, DEMO_RESTAURANT_ID, duRestaurant, restaurantDe } from "../tenant";
+import { restaurantDe } from "../tenant";
+import { repositories } from "../repositories";
+import { estUuid } from "../repositories/outils";
 
-// Données mockées — Phase 1
-const MOCK_RESERVATIONS = [
-  {
-    id: "r1",
-    tableId: "t2",
-    clientId: "client-fontaine",
-    nomClient: "M. Fontaine",
-    couverts: 2,
-    heure: "19:30",
-    allergenes: [],
-    notes: "Anniversaire — prévoir bougie",
-    source: "telephone",
-    status: "installee",
-    serviceEvents: [
-      { id: "e1", reservationId: "r1", tableId: "t2", type: "arrivee", label: "Arrivée des clients", occurredAt: "2026-09-09T19:42:00.000Z" },
-      { id: "e2", reservationId: "r1", tableId: "t2", type: "plat_servi", label: "Plats servis", occurredAt: "2026-09-09T20:22:00.000Z" },
-    ],
-  },
-  {
-    id: "r2",
-    tableId: "t3",
-    clientId: "client-beaumont",
-    nomClient: "Mme Beaumont",
-    couverts: 4,
-    heure: "20:00",
-    allergenes: ["gluten", "lactose"],
-    notes: "",
-  },
-  {
-    id: "r3",
-    tableId: "t4",
-    nomClient: "M. Renard",
-    couverts: 6,
-    heure: "20:30",
-    allergenes: ["arachides"],
-    notes: "Client régulier — table habituelle",
-  },
-  {
-    id: "r4",
-    tableId: "t6",
-    nomClient: "Famille Moreau",
-    couverts: 4,
-    heure: "19:00",
-    allergenes: [],
-    notes: "",
-  },
-  {
-    id: "r5",
-    tableId: "t1",
-    nomClient: "Mme Leclerc",
-    couverts: 2,
-    heure: "21:00",
-    allergenes: ["fruits de mer"],
-    notes: "VIP — compte fidélité",
-  },
-];
+const SOURCES: NonNullable<Reservation["source"]>[] = ["telephone", "site", "email", "walk_in", "conciergerie"];
 
-// Chaque réservation appartient à une journée de service (voir serviceDay.ts) : une
-// table à 0h30 fait partie du service de la veille. Démo : le planning mock est celui du jour.
-export const reservations: ((typeof MOCK_RESERVATIONS)[number] & { date: string; restaurantId: string })[] = MOCK_RESERVATIONS.map((reservation) => ({
-  ...reservation,
-  restaurantId: DEMO_RESTAURANT_ID,
-  date: jourDeService(),
-}));
+type CorpsReservation = {
+  id?: string;
+  date?: string;
+  heure: string;
+  nomClient: string;
+  couverts: number;
+  tableId?: string;
+  clientId?: string;
+  allergenes?: string[];
+  allergenesSignalesAt?: string;
+  notes?: string;
+  source?: Reservation["source"];
+};
 
 export async function reservationsRoutes(app: FastifyInstance) {
-  // GET /reservations — réservations du soir courant
-  app.get("/reservations", async (req) => {
-    return duRestaurant(reservations, req);
+  // GET /reservations?date=AAAA-MM-JJ — réservations d'une journée de service (par
+  // défaut celle en cours), walk-ins compris (source « walk_in »), hors annulées.
+  app.get<{ Querystring: { date?: string } }>("/reservations", async (req) => {
+    const restaurantId = restaurantDe(req);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date ?? "") ? req.query.date! : jourEffectif(restaurantId);
+    return repositories.reservations.lister(restaurantId, date);
   });
 
-  // POST /reservations — créer une réservation en mémoire pour le prototype
-  app.post<{ Body: Omit<(typeof MOCK_RESERVATIONS)[number], "id"> & { date?: string } }>("/reservations", { preHandler: requirePermission("reservation.gerer") }, async (req, reply) => {
-    const { nomClient, tableId, couverts, heure, allergenes, notes } = req.body;
-    if (!nomClient?.trim() || !tableId?.trim() || !Number.isInteger(couverts) || couverts < 1 || !/^([01]\d|2[0-3]):[0-5]\d$/.test(heure)) {
+  app.post<{ Body: CorpsReservation }>("/reservations", { preHandler: requirePermission("reservation.gerer") }, async (req, reply) => {
+    const { nomClient, couverts, heure, tableId, clientId, notes } = req.body;
+    const allergenes = (req.body.allergenes ?? []).map((a) => a.trim()).filter(Boolean);
+    if (!nomClient?.trim() || !Number.isInteger(couverts) || couverts < 1 || !/^([01]\d|2[0-3]):[0-5]\d$/.test(heure ?? "")) {
       return reply.status(400).send({ error: "Données de réservation invalides" });
     }
-    const date = typeof req.body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.body.date) ? req.body.date : jourEffectif(restaurantDe(req));
-    const reservation = { id: `r-${Date.now()}`, restaurantId: restaurantDe(req), date, nomClient: nomClient.trim(), tableId: tableId.trim(), couverts, heure, allergenes: allergenes ?? [], notes: notes?.trim() ?? "" };
-    reservations.push(reservation as (typeof reservations)[number]);
+    // Identifiant généré par l'app (uuid) ; un ancien « local-… » est remplacé par le serveur.
+    const id = req.body.id;
+    if (id !== undefined && !estUuid(id) && !String(id).startsWith("local-")) {
+      return reply.status(400).send({ error: "Identifiant de réservation invalide" });
+    }
+    // Allergies = donnée de santé : seulement si le client les a signalées (docs/rgpd.md).
+    if (allergenes.length > 0 && !req.body.allergenesSignalesAt) {
+      return reply.status(400).send({ error: "Allergies non signalées par le client" });
+    }
+    const restaurantId = restaurantDe(req);
+    // Table et fiche client facultatives, mais forcément de ce restaurant.
+    if (tableId && !(await repositories.salles.tableExiste(restaurantId, tableId))) {
+      return reply.status(404).send({ error: "Table introuvable" });
+    }
+    if (clientId && !(await repositories.clients.lire(restaurantId, clientId))) {
+      return reply.status(404).send({ error: "Client introuvable" });
+    }
+
+    const reservation = await repositories.reservations.creer(restaurantId, {
+      id: req.body.id && estUuid(req.body.id) ? req.body.id : undefined,
+      date: /^\d{4}-\d{2}-\d{2}$/.test(req.body.date ?? "") ? req.body.date! : jourEffectif(restaurantId),
+      heure,
+      nomClient: nomClient.trim(),
+      couverts,
+      tableId: tableId || undefined,
+      clientId: clientId || undefined,
+      allergenes,
+      allergenesSignalesAt: allergenes.length > 0 ? req.body.allergenesSignalesAt : undefined,
+      notes: notes?.trim() || undefined,
+      source: req.body.source && SOURCES.includes(req.body.source) && req.body.source !== "walk_in" ? req.body.source : "telephone",
+    });
     return reply.status(201).send(reservation);
   });
 
+  // DELETE /reservations/:id — annulation : la réservation reste en base au statut
+  // « annulée » (statistiques), ses allergies sont effacées.
   app.delete<{ Params: { id: string } }>("/reservations/:id", { preHandler: requirePermission("reservation.gerer") }, async (req, reply) => {
-    const index = reservations.findIndex((reservation) => reservation.id === req.params.id);
-    if (index === -1 || !appartient(reservations[index], req)) return reply.status(404).send({ error: "Réservation introuvable" });
-    reservations.splice(index, 1);
-    return { id: req.params.id, deleted: true };
+    const annulee = await repositories.reservations.annuler(restaurantDe(req), req.params.id);
+    if (!annulee) return reply.status(404).send({ error: "Réservation introuvable" });
+    return { id: req.params.id, status: "annulee" };
   });
 }

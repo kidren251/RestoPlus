@@ -6,7 +6,7 @@ import { resolveIdentity } from "../demoIdentity";
 import { delegationActive } from "../delegationStore";
 import { confirmerMouvement, items as stockItems, movements } from "./stock";
 import { journalAdditions, journalCommandes } from "./tableState";
-import { reservations } from "./reservations";
+import { repositories } from "../repositories";
 import { comptesRendus, etatJournee, historiqueJournees, jourEffectif } from "../journeeStore";
 import { journaliser } from "../audit";
 import "../auth";
@@ -61,7 +61,7 @@ function arrondi(valeur: number) {
 }
 
 /** Brouillon calculé à la volée : reflète toujours l'état courant du service. */
-function genererBrouillon(restaurantId: string, pole: PoleService): CompteRenduService {
+async function genererBrouillon(restaurantId: string, pole: PoleService): Promise<CompteRenduService> {
   const jour = jourEffectif(restaurantId);
   const periodeDebut = derniereValidation(restaurantId, pole, jour);
   const plats = agregerPlats(restaurantId, jour, periodeDebut);
@@ -79,7 +79,8 @@ function genererBrouillon(restaurantId: string, pole: PoleService): CompteRenduS
   };
 
   if (pole === "salle") {
-    const duJour = reservations.filter((reservation) => reservation.restaurantId === restaurantId && reservation.date === jour);
+    // Réservations de la journée, walk-ins compris, hors annulées.
+    const duJour = await repositories.reservations.lister(restaurantId, jour);
     return {
       ...base,
       nbReservations: duJour.length,
@@ -129,18 +130,18 @@ export async function comptesRendusRoutes(app: FastifyInstance) {
   app.get<{ Params: { pole: string } }>("/comptes-rendus/brouillon/:pole", async (req, reply) => {
     const pole = parsePole(req.params.pole);
     if (!pole) return reply.status(400).send({ error: "Pôle invalide" });
-    if (!checkPermission(req, reply, `compte_rendu.${pole}`)) return;
-    return genererBrouillon(restaurantDe(req), pole);
+    if (!(await checkPermission(req, reply, `compte_rendu.${pole}`))) return;
+    return await genererBrouillon(restaurantDe(req), pole);
   });
 
   // POST /comptes-rendus/:pole/valider — fige le compte rendu et le transmet à la direction
   app.post<{ Params: { pole: string }; Body: { observations?: string } }>("/comptes-rendus/:pole/valider", async (req, reply) => {
     const pole = parsePole(req.params.pole);
     if (!pole) return reply.status(400).send({ error: "Pôle invalide" });
-    if (!checkPermission(req, reply, `compte_rendu.${pole}`)) return;
+    if (!(await checkPermission(req, reply, `compte_rendu.${pole}`))) return;
 
     const restaurantId = restaurantDe(req);
-    const brouillon = genererBrouillon(restaurantId, pole);
+    const brouillon = await genererBrouillon(restaurantId, pole);
     const identity = resolveIdentity(req);
     const valideAt = new Date().toISOString();
 

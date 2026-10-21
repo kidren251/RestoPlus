@@ -139,6 +139,32 @@ votre équipe le temps du service, puis les oublie. »*
 
 ---
 
+## 4. L'outil s'adapte à votre organisation, pas l'inverse
+
+**Le problème du client**
+Chaque maison a ses habitudes : ici le serveur accueille et installe lui-même ses
+clients, là c'est le chef de rang qui garde la main ; ici le serveur peut envoyer
+l'addition, ailleurs non. Les logiciels figés imposent leur organisation, et le
+personnel contourne l'outil.
+
+**Notre réponse**
+- Les droits du service se règlent **établissement par établissement** à la mise en
+  place : qui installe les clients, qui suit le dîner, qui envoie l'addition, qui gère
+  les réservations…
+- Les gestes du service tiennent en un toucher : installer un client sans réservation,
+  ou le client qui arrive et demande une autre table — sa réservation, ses allergies et
+  le déroulé de son dîner suivent.
+
+**Ce qui le rend crédible techniquement**
+- Les réglages sont appliqués par le serveur, pas seulement masqués dans l'écran.
+- Les droits sensibles (comptabilité, stock, audit, comptes) ne sont jamais
+  assouplissables ; chaque changement de réglage est inscrit au journal d'audit.
+
+**Phrase d'accroche**
+*« Vous gardez votre façon de travailler. Resto Plus s'y règle. »*
+
+---
+
 # Facturation (pistes de travail)
 
 Idée de départ : **facturer au nombre d'utilisateurs** de l'écosystème d'un

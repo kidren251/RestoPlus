@@ -5,6 +5,7 @@ import { resolveIdentity } from "./demoIdentity";
 import { appliquerDelegation } from "./delegationStore";
 import { journaliser } from "./audit";
 import { restaurantDe } from "./tenant";
+import { repositories } from "./repositories";
 
 
 /**
@@ -27,13 +28,14 @@ export function resolveSubject(req: FastifyRequest): PermissionSubject | null {
 
 /**
  * preHandler Fastify : refuse la requête si l'appelant n'a pas le droit demandé
- * (matrice partagée dans packages/types/src/permissions.ts).
+ * (matrice partagée dans packages/types/src/permissions.ts, avec les niveaux réglés
+ * par le N4 pour cet établissement).
  * Sans aucune identité et sans auth exigée (curl, anciens clients), on laisse passer
  * comme le reste du mode mock ; avec l'auth exigée, l'absence d'identité est un refus.
  */
 export function requirePermission(permission: Permission) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
-    checkPermission(req, reply, permission);
+    await checkPermission(req, reply, permission);
   };
 }
 
@@ -41,14 +43,15 @@ export function requirePermission(permission: Permission) {
  * Variante utilisable dans un handler quand le droit dépend de la requête (ex. type
  * de mouvement de stock). Renvoie false et a déjà répondu 401/403 si refusé.
  */
-export function checkPermission(req: FastifyRequest, reply: FastifyReply, permission: Permission): boolean {
+export async function checkPermission(req: FastifyRequest, reply: FastifyReply, permission: Permission): Promise<boolean> {
   const subject = resolveSubject(req);
   if (!subject) {
     if (!isAuthRequired()) return true;
     reply.status(401).send({ error: "AUTH_REQUIRED" });
     return false;
   }
-  if (!can(subject, permission)) {
+  const reglages = await repositories.etablissements.reglagesDroits(restaurantDe(req));
+  if (!can(subject, permission, reglages)) {
     // Une tentative hors de ses droits est une information de sécurité, pas une faute :
     // on garde la trace de la route et du droit manquant, rien de plus.
     journaliser(req, "acces.refuse", { details: { permission, route: `${req.method} ${req.routeOptions.url ?? req.url}` } });

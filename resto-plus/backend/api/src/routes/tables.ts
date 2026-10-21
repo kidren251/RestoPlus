@@ -1,9 +1,23 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type { DishServiceStatus, ServiceCourse, StatutTable } from "@resto-plus/types";
 import { requirePermission } from "../permissions";
 import { restaurantDe } from "../tenant";
 import { journaliser } from "../audit";
 import { repositories } from "../repositories";
+import { ErreurService } from "../repositories/service";
+
+/** Erreur métier d'un geste du service → réponse HTTP claire pour l'app. */
+function repondreErreurService(erreur: unknown, reply: FastifyReply) {
+  if (!(erreur instanceof ErreurService)) throw erreur;
+  const messages = {
+    TABLE_INTROUVABLE: [404, "Table introuvable"],
+    RESERVATION_INTROUVABLE: [404, "Réservation introuvable ou déjà installée"],
+    TABLE_OCCUPEE: [409, "Cette table est déjà occupée"],
+    AUCUN_REPAS: [409, "Aucun repas en cours à cette table"],
+  } as const;
+  const [status, error] = messages[erreur.code];
+  return reply.status(status).send({ error, code: erreur.code });
+}
 import { journalAdditions } from "./tableState";
 
 export async function tablesRoutes(app: FastifyInstance) {
@@ -98,9 +112,47 @@ export async function tablesRoutes(app: FastifyInstance) {
     return { tableId: req.params.id, status: "occupee", openedAt: req.body.occurredAt };
   });
 
+  // POST /tables/:id/installer — installe des clients : une réservation (même prévue
+  // pour une autre table, le client a demandé à changer) ou un walk-in (sans réservation).
+  app.post<{ Params: { id: string }; Body: { reservationId?: string; couverts?: number } }>(
+    "/tables/:id/installer",
+    { preHandler: requirePermission("service.installer") },
+    async (req, reply) => {
+      const { reservationId, couverts } = req.body ?? {};
+      if (!reservationId && (!Number.isInteger(couverts) || (couverts as number) < 1 || (couverts as number) > 99)) {
+        return reply.status(400).send({ error: "Nombre de couverts invalide" });
+      }
+      try {
+        // La table appartient au restaurant : vérifié par le preHandler de ce module.
+        const resultat = await repositories.service.installer(restaurantDe(req), req.params.id, { reservationId, couverts }, new Date().toISOString());
+        return reply.status(201).send(resultat);
+      } catch (erreur) {
+        return repondreErreurService(erreur, reply);
+      }
+    }
+  );
+
+  // POST /tables/:id/deplacer — le repas en cours change de table (client, étape,
+  // allergies et réservation suivent).
+  app.post<{ Params: { id: string }; Body: { versTableId: string } }>(
+    "/tables/:id/deplacer",
+    { preHandler: requirePermission("service.installer") },
+    async (req, reply) => {
+      const restaurantId = restaurantDe(req);
+      const versTableId = req.body?.versTableId;
+      if (!versTableId || versTableId === req.params.id) return reply.status(400).send({ error: "Table de destination invalide" });
+      if (!(await repositories.salles.tableExiste(restaurantId, versTableId))) return reply.status(404).send({ error: "Table introuvable" });
+      try {
+        return await repositories.service.deplacer(restaurantId, req.params.id, versTableId, new Date().toISOString());
+      } catch (erreur) {
+        return repondreErreurService(erreur, reply);
+      }
+    }
+  );
+
   app.put<{ Params: { id: string }; Body: { tableId: string; occurredAt: string } }>("/tables/:id/bill", { preHandler: requirePermission("service.addition") }, async (req) => {
-    // Repas terminé : table à nettoyer, les allergies ne sont plus conservées.
-    await repositories.salles.terminerRepas(restaurantDe(req), req.params.id);
+    // Repas terminé : table à nettoyer, réservation terminée, allergies effacées.
+    await repositories.service.terminer(restaurantDe(req), req.params.id, new Date().toISOString());
     journalAdditions.push({ tableId: req.params.id, restaurantId: restaurantDe(req), at: new Date().toISOString() });
     journaliser(req, "service.addition", { cible: { type: "table", id: req.params.id } });
     return { tableId: req.params.id, status: "a_nettoyer", billedAt: req.body.occurredAt };
